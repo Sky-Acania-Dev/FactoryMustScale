@@ -72,7 +72,6 @@ namespace FactoryMustScale.Tests.EditMode
         {
             var layer = new Layer(minX: 0, minY: 0, width: 6, height: 4);
 
-            // Same logical machine can mark different role/state at different cells.
             Assert.That(layer.TrySetCellState(2, 1, stateId: 100, variantId: 1, flags: 1u, currentTick: 20, out GridCellData inputCell), Is.True);
             Assert.That(layer.TrySetCellState(3, 1, stateId: 101, variantId: 2, flags: 2u, currentTick: 20, out GridCellData outputCell), Is.True);
 
@@ -80,6 +79,36 @@ namespace FactoryMustScale.Tests.EditMode
             Assert.That(outputCell.StateId, Is.EqualTo(101));
             Assert.That(inputCell.LastUpdatedTick, Is.EqualTo(20));
             Assert.That(outputCell.LastUpdatedTick, Is.EqualTo(20));
+        }
+
+        [Test]
+        public void TrySetPayload_AndTryGetPayload_UseSameCellIndexScheme()
+        {
+            var layer = new Layer(minX: 10, minY: 20, width: 3, height: 2, payloadChannelCount: 2);
+
+            Assert.That(layer.PayloadChannelCount, Is.EqualTo(2));
+            Assert.That(layer.TrySetPayload(11, 20, channelIndex: 0, payloadValue: 55), Is.True);
+            Assert.That(layer.TrySetPayload(11, 20, channelIndex: 1, payloadValue: 66), Is.True);
+
+            Assert.That(layer.TryGetPayload(11, 20, channelIndex: 0, out int payload0), Is.True);
+            Assert.That(layer.TryGetPayload(11, 20, channelIndex: 1, out int payload1), Is.True);
+            Assert.That(payload0, Is.EqualTo(55));
+            Assert.That(payload1, Is.EqualTo(66));
+
+            Assert.That(layer.TryGetPayload(12, 20, channelIndex: 0, out int adjacentPayload), Is.True);
+            Assert.That(adjacentPayload, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TrySetPayload_ReturnsFalse_ForInvalidChannelOrRange()
+        {
+            var layer = new Layer(minX: 0, minY: 0, width: 2, height: 2, payloadChannelCount: 1);
+
+            Assert.That(layer.TrySetPayload(0, 0, channelIndex: -1, payloadValue: 1), Is.False);
+            Assert.That(layer.TrySetPayload(0, 0, channelIndex: 1, payloadValue: 1), Is.False);
+            Assert.That(layer.TrySetPayload(3, 0, channelIndex: 0, payloadValue: 1), Is.False);
+            Assert.That(layer.TryGetPayload(0, 0, channelIndex: 3, out int payload), Is.False);
+            Assert.That(payload, Is.EqualTo(0));
         }
 
         private static void ApplySequence(Layer layer)
