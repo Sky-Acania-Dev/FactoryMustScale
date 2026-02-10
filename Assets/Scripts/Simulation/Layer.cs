@@ -5,6 +5,15 @@ namespace FactoryMustScale.Simulation
     /// <summary>
     /// Deterministic 2D integer-grid layer with preallocated storage.
     /// Optional payload channels are layer-owned arrays sharing the same cell index mapping.
+    ///
+    /// Indexing model:
+    /// - Core cell state and optional payload channels both resolve through the same row-major cell index.
+    /// - This keeps deterministic ordering and avoids per-cell reference allocations.
+    ///
+    /// Factory modeling guidance:
+    /// - Conveyors: use GridCellData.StateId/VariantId/Flags for topology and behavior toggles.
+    /// - Multi-cell crafters: mark each tile role with state ids (core/input/output) and keep any
+    ///   dynamic counters in payload channels.
     /// </summary>
     public sealed class Layer
     {
