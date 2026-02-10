@@ -4,13 +4,6 @@ namespace FactoryMustScale.Simulation
 {
     /// <summary>
     /// Deterministic 2D integer-grid layer with preallocated storage.
-    ///
-    /// Input contract:
-    /// - event position (x, y)
-    /// - event payload (int)
-    ///
-    /// Output contract:
-    /// - layer mutates its own state in place
     /// </summary>
     public sealed class Layer
     {
@@ -65,7 +58,18 @@ namespace FactoryMustScale.Simulation
             return true;
         }
 
-        public bool TryApplyEvent(int x, int y, int eventValue, out GridCellData updatedData)
+        /// <summary>
+        /// Applies one deterministic state-change event to a cell.
+        /// Supports conveyor/crafter modeling by allowing state and variant to differ per cell.
+        /// </summary>
+        public bool TrySetCellState(
+            int x,
+            int y,
+            int stateId,
+            int variantId,
+            uint flags,
+            int currentTick,
+            out GridCellData updatedData)
         {
             int index;
             if (!TryGetIndex(x, y, out index))
@@ -75,8 +79,11 @@ namespace FactoryMustScale.Simulation
             }
 
             GridCellData cellData = _cells[index];
-            cellData.LastEventValue = eventValue;
-            cellData.EventCount++;
+            cellData.StateId = stateId;
+            cellData.VariantId = variantId;
+            cellData.Flags = flags;
+            cellData.LastUpdatedTick = currentTick;
+            cellData.ChangeCount++;
             _cells[index] = cellData;
 
             updatedData = cellData;
