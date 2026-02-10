@@ -32,8 +32,8 @@ Agents are helpers, not decision-makers.
 ### Simulation
 - **Simulation does NOT run in `Update()`**
 - Use:
-  - `FixedUpdate()`, or
-  - a custom fixed-step loop
+  - `FixedUpdate()` for combat/projectile collision detection, and
+  - a custom fixed-step loop (e.g., 4 ticks/s) for factory logic
 - Simulation must be **deterministic**:
   - stable iteration order
   - no frame-rate dependence
