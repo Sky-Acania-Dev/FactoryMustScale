@@ -4,6 +4,21 @@ using System;
 
 namespace FactoryMustScale.Tests.EditMode
 {
+    /// <summary>
+    /// EditMode tests that codify baseline simulation constraints from AGENTS.md and Docs/SimRules.md.
+    ///
+    /// Why this test suite exists:
+    /// - Guards fixed-step behavior through explicit tick-count assertions.
+    /// - Guards determinism through repeat-run equivalence checks.
+    /// - Guards hot-path memory behavior through per-tick allocation checks.
+    ///
+    /// Assumptions:
+    /// - <see cref="GC.GetAllocatedBytesForCurrentThread"/> is available in the target Unity/.NET runtime.
+    /// - Allocation test executes on one thread and reflects managed allocations for this workload.
+    ///
+    /// Possible improvement relative to rules:
+    /// - Add additional deterministic scenarios with explicit input-buffer snapshots once ingestion/extraction phases are added.
+    /// </summary>
     public sealed class SimulationHarnessDeterminismTests
     {
         [Test]
