@@ -47,10 +47,10 @@ namespace FactoryMustScale.Simulation
                     return TerrainTypeMask.Cliff;
                 case TerrainType.Blocked:
                     return TerrainTypeMask.Blocked;
-                case TerrainType.OrePatch:
-                    return TerrainTypeMask.OrePatch;
-                case TerrainType.GeothermalVent:
-                    return TerrainTypeMask.GeothermalVent;
+                case TerrainType.ResourceDeposit:
+                    return TerrainTypeMask.ResourceDeposit;
+                case TerrainType.GeothermalSite:
+                    return TerrainTypeMask.GeothermalSite;
                 default:
                     return TerrainTypeMask.None;
             }

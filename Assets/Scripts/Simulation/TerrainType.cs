@@ -7,8 +7,8 @@ namespace FactoryMustScale.Simulation
         Water = 2,
         Cliff = 3,
         Blocked = 4,
-        OrePatch = 5,
-        GeothermalVent = 6
+        ResourceDeposit = 5,
+        GeothermalSite = 6
     }
 
     [System.Flags]
@@ -20,8 +20,8 @@ namespace FactoryMustScale.Simulation
         Water = 1u << 2,
         Cliff = 1u << 3,
         Blocked = 1u << 4,
-        OrePatch = 1u << 5,
-        GeothermalVent = 1u << 6,
-        Any = NoneTerrain | Ground | Water | Cliff | Blocked | OrePatch | GeothermalVent
+        ResourceDeposit = 1u << 5,
+        GeothermalSite = 1u << 6,
+        Any = NoneTerrain | Ground | Water | Cliff | Blocked | ResourceDeposit | GeothermalSite
     }
 }

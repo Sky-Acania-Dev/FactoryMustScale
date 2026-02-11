@@ -19,8 +19,8 @@ namespace FactoryMustScale.Tests.EditMode
         {
             Assert.That(BuildableRules.ToMask(TerrainType.None), Is.EqualTo(TerrainTypeMask.NoneTerrain));
             Assert.That(BuildableRules.ToMask(TerrainType.Ground), Is.EqualTo(TerrainTypeMask.Ground));
-            Assert.That(BuildableRules.ToMask(TerrainType.OrePatch), Is.EqualTo(TerrainTypeMask.OrePatch));
-            Assert.That(BuildableRules.ToMask(TerrainType.GeothermalVent), Is.EqualTo(TerrainTypeMask.GeothermalVent));
+            Assert.That(BuildableRules.ToMask(TerrainType.ResourceDeposit), Is.EqualTo(TerrainTypeMask.ResourceDeposit));
+            Assert.That(BuildableRules.ToMask(TerrainType.GeothermalSite), Is.EqualTo(TerrainTypeMask.GeothermalSite));
         }
 
         [Test]
@@ -36,10 +36,10 @@ namespace FactoryMustScale.Tests.EditMode
         [Test]
         public void IsBuildableOnTerrain_UsesAllowedMask()
         {
-            TerrainTypeMask machineTerrainMask = TerrainTypeMask.Ground | TerrainTypeMask.OrePatch;
+            TerrainTypeMask machineTerrainMask = TerrainTypeMask.Ground | TerrainTypeMask.ResourceDeposit;
 
             Assert.That(BuildableRules.IsBuildableOnTerrain(TerrainType.Ground, machineTerrainMask), Is.True);
-            Assert.That(BuildableRules.IsBuildableOnTerrain(TerrainType.OrePatch, machineTerrainMask), Is.True);
+            Assert.That(BuildableRules.IsBuildableOnTerrain(TerrainType.ResourceDeposit, machineTerrainMask), Is.True);
             Assert.That(BuildableRules.IsBuildableOnTerrain(TerrainType.Water, machineTerrainMask), Is.False);
         }
 
@@ -49,7 +49,7 @@ namespace FactoryMustScale.Tests.EditMode
             Layer factoryLayer = new Layer(0, 0, 4, 4);
             Layer terrainLayer = new Layer(0, 0, 4, 4, payloadChannelCount: 1);
 
-            bool terrainSet = terrainLayer.TrySetCellState(1, 1, (int)TerrainType.OrePatch, 0, 0u, currentTick: 0, out _);
+            bool terrainSet = terrainLayer.TrySetCellState(1, 1, (int)TerrainType.ResourceDeposit, 0, 0u, currentTick: 0, out _);
             bool resourceSet = terrainLayer.TrySetPayload(1, 1, channelIndex: 0, payloadValue: (int)ResourceType.Ore);
             Assert.That(terrainSet, Is.True);
             Assert.That(resourceSet, Is.True);
@@ -57,7 +57,7 @@ namespace FactoryMustScale.Tests.EditMode
             BuildableRuleData minerRule = new BuildableRuleData
             {
                 StateId = (int)GridStateId.Conveyor,
-                AllowedTerrains = TerrainTypeMask.OrePatch,
+                AllowedTerrains = TerrainTypeMask.ResourceDeposit,
                 AllowedResources = ResourceTypeMask.Ore
             };
 
@@ -142,7 +142,7 @@ namespace FactoryMustScale.Tests.EditMode
                 new BuildableRuleData
                 {
                     StateId = (int)GridStateId.Storage,
-                    AllowedTerrains = TerrainTypeMask.Ground | TerrainTypeMask.OrePatch,
+                    AllowedTerrains = TerrainTypeMask.Ground | TerrainTypeMask.ResourceDeposit,
                     AllowedResources = ResourceTypeMask.NoneResource | ResourceTypeMask.Ore
                 },
             };
@@ -151,7 +151,7 @@ namespace FactoryMustScale.Tests.EditMode
 
             Assert.That(found, Is.True);
             Assert.That(rule.StateId, Is.EqualTo((int)GridStateId.Storage));
-            Assert.That(rule.AllowedTerrains, Is.EqualTo(TerrainTypeMask.Ground | TerrainTypeMask.OrePatch));
+            Assert.That(rule.AllowedTerrains, Is.EqualTo(TerrainTypeMask.Ground | TerrainTypeMask.ResourceDeposit));
             Assert.That(rule.AllowedResources, Is.EqualTo(ResourceTypeMask.NoneResource | ResourceTypeMask.Ore));
         }
 
