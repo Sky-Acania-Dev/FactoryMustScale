@@ -18,6 +18,8 @@ namespace FactoryMustScale.Simulation
         public Layer FactoryLayer;
         public BuildableRuleData[] BuildableRules;
         public FactoryCommandQueue CommandQueue;
+        public FactoryCommandResultBuffer CommandResults;
+        public bool StopProcessingOnFailure;
     }
 
     /// <summary>
@@ -49,6 +51,7 @@ namespace FactoryMustScale.Simulation
                 return;
             }
 
+            state.CommandResults.Clear();
             ApplyQueuedCommands(ref state, tickIndex);
             state.CommandQueue.Clear();
 
@@ -60,7 +63,6 @@ namespace FactoryMustScale.Simulation
             }
         }
 
-
         private static void ApplyQueuedCommands(ref MinimalFactoryGameState state, int tickIndex)
         {
             int commandCount = state.CommandQueue.Count;
@@ -68,27 +70,41 @@ namespace FactoryMustScale.Simulation
             for (int i = 0; i < commandCount; i++)
             {
                 FactoryCommand command = state.CommandQueue.GetAt(i);
+                FactoryCommandResult result = BuildDefaultResult(i, command);
 
                 switch (command.Type)
                 {
                     case FactoryCommandType.PlaceBuilding:
-                        ApplyPlaceCommand(ref state, command, tickIndex);
+                        ApplyPlaceCommand(ref state, command, tickIndex, ref result);
                         break;
                     case FactoryCommandType.RemoveBuilding:
-                        ApplyRemoveCommand(ref state, command, tickIndex);
+                        ApplyRemoveCommand(ref state, command, tickIndex, ref result);
                         break;
                     case FactoryCommandType.RotateBuilding:
-                        ApplyRotateCommand(ref state, command, tickIndex);
+                        ApplyRotateCommand(ref state, command, tickIndex, ref result);
                         break;
+                    default:
+                        result.Success = false;
+                        result.FailureReason = FactoryCommandFailureReason.UnknownCommand;
+                        break;
+                }
+
+                state.CommandResults.TryAdd(result);
+
+                if (!result.Success && state.StopProcessingOnFailure)
+                {
+                    break;
                 }
             }
         }
 
-        private static void ApplyPlaceCommand(ref MinimalFactoryGameState state, FactoryCommand command, int tickIndex)
+        private static void ApplyPlaceCommand(ref MinimalFactoryGameState state, FactoryCommand command, int tickIndex, ref FactoryCommandResult result)
         {
             BuildableRuleData buildRule;
             if (!BuildableRules.TryGetRule(state.BuildableRules, command.StateId, out buildRule))
             {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.MissingBuildRule;
                 return;
             }
 
@@ -102,32 +118,73 @@ namespace FactoryMustScale.Simulation
 
             if (!canBuild)
             {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.NotBuildable;
                 return;
             }
 
             int variantId = GridCellData.SetOrientation(0, command.Orientation);
-            state.FactoryLayer.TrySetCellState(command.X, command.Y, command.StateId, variantId, 0u, tickIndex, out _);
+            if (!state.FactoryLayer.TrySetCellState(command.X, command.Y, command.StateId, variantId, 0u, tickIndex, out _))
+            {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.OutOfRange;
+                return;
+            }
+
+            result.Success = true;
+            result.FailureReason = FactoryCommandFailureReason.None;
+            result.AppliedStateId = command.StateId;
         }
 
-        private static void ApplyRemoveCommand(ref MinimalFactoryGameState state, FactoryCommand command, int tickIndex)
+        private static void ApplyRemoveCommand(ref MinimalFactoryGameState state, FactoryCommand command, int tickIndex, ref FactoryCommandResult result)
         {
-            state.FactoryLayer.TrySetCellState(command.X, command.Y, (int)GridStateId.Empty, 0, 0u, tickIndex, out _);
+            if (!state.FactoryLayer.TrySetCellState(command.X, command.Y, (int)GridStateId.Empty, 0, 0u, tickIndex, out _))
+            {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.OutOfRange;
+                return;
+            }
+
+            result.Success = true;
+            result.FailureReason = FactoryCommandFailureReason.None;
+            result.AppliedStateId = (int)GridStateId.Empty;
         }
 
-        private static void ApplyRotateCommand(ref MinimalFactoryGameState state, FactoryCommand command, int tickIndex)
+        private static void ApplyRotateCommand(ref MinimalFactoryGameState state, FactoryCommand command, int tickIndex, ref FactoryCommandResult result)
         {
             if (!state.FactoryLayer.TryGet(command.X, command.Y, out GridCellData existingCell))
             {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.OutOfRange;
                 return;
             }
 
             if (existingCell.StateId == (int)GridStateId.Empty)
             {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.EmptyCell;
                 return;
             }
 
             int nextVariantId = GridCellData.SetOrientation(existingCell.VariantId, command.Orientation);
             state.FactoryLayer.TrySetCellState(command.X, command.Y, existingCell.StateId, nextVariantId, existingCell.Flags, tickIndex, out _);
+            result.Success = true;
+            result.FailureReason = FactoryCommandFailureReason.None;
+            result.AppliedStateId = existingCell.StateId;
+        }
+
+        private static FactoryCommandResult BuildDefaultResult(int commandIndex, FactoryCommand command)
+        {
+            return new FactoryCommandResult
+            {
+                CommandIndex = commandIndex,
+                CommandType = command.Type,
+                X = command.X,
+                Y = command.Y,
+                Success = false,
+                FailureReason = FactoryCommandFailureReason.UnknownCommand,
+                AppliedStateId = (int)GridStateId.Empty,
+            };
         }
 
         private static void InitializeGame(ref MinimalFactoryGameState state)

@@ -59,6 +59,8 @@ namespace FactoryMustScale.Tests.EditMode
                 FactoryLayer = factoryLayer,
                 BuildableRules = rules,
                 CommandQueue = commandQueue,
+                CommandResults = new FactoryCommandResultBuffer(capacity: 8),
+                StopProcessingOnFailure = false,
             };
 
             var harness = new FixedStepSimulationHarness<MinimalFactoryGameState, MinimalFactoryGameLoopSystem>(
@@ -71,6 +73,12 @@ namespace FactoryMustScale.Tests.EditMode
             Assert.That(placedCell.StateId, Is.EqualTo((int)GridStateId.Conveyor));
             Assert.That(GridCellData.GetOrientation(placedCell.VariantId), Is.EqualTo((int)CellOrientation.Left));
             Assert.That(harness.State.CommandQueue.Count, Is.EqualTo(0));
+
+            Assert.That(harness.State.CommandResults.Count, Is.EqualTo(2));
+            FactoryCommandResult placeResult = harness.State.CommandResults.GetAt(0);
+            FactoryCommandResult rotateResult = harness.State.CommandResults.GetAt(1);
+            Assert.That(placeResult.Success, Is.True);
+            Assert.That(rotateResult.Success, Is.True);
 
             var secondQueue = harness.State.CommandQueue;
             Assert.That(secondQueue.TryEnqueue(new FactoryCommand
@@ -91,6 +99,82 @@ namespace FactoryMustScale.Tests.EditMode
 
             Assert.That(secondHarness.State.FactoryLayer.TryGet(1, 1, out GridCellData removedCell), Is.True);
             Assert.That(removedCell.StateId, Is.EqualTo((int)GridStateId.Empty));
+            Assert.That(secondHarness.State.CommandResults.Count, Is.EqualTo(1));
+            Assert.That(secondHarness.State.CommandResults.GetAt(0).Success, Is.True);
+        }
+
+        [Test]
+        public void CommandResults_CaptureFailures_AndCanStopOnFirstFailure()
+        {
+            Layer terrainLayer = new Layer(0, 0, 3, 3, payloadChannelCount: 1);
+            Layer factoryLayer = new Layer(0, 0, 3, 3);
+
+            for (int y = 0; y < 3; y++)
+            {
+                for (int x = 0; x < 3; x++)
+                {
+                    terrainLayer.TrySetCellState(x, y, (int)TerrainType.Ground, 0, 0u, currentTick: 0, out _);
+                    terrainLayer.TrySetPayload(x, y, 0, (int)ResourceType.None);
+                    factoryLayer.TrySetCellState(x, y, (int)GridStateId.Empty, 0, 0u, currentTick: 0, out _);
+                }
+            }
+
+            BuildableRuleData[] rules =
+            {
+                new BuildableRuleData
+                {
+                    StateId = (int)GridStateId.Conveyor,
+                    AllowedTerrains = TerrainTypeMask.Ground,
+                    AllowedResources = ResourceTypeMask.NoneResource,
+                },
+            };
+
+            var queue = new FactoryCommandQueue(capacity: 8);
+            Assert.That(queue.TryEnqueue(new FactoryCommand
+            {
+                Type = FactoryCommandType.PlaceBuilding,
+                X = 0,
+                Y = 0,
+                StateId = (int)GridStateId.PowerGenerator,
+                Orientation = (int)CellOrientation.Up,
+            }), Is.True);
+            Assert.That(queue.TryEnqueue(new FactoryCommand
+            {
+                Type = FactoryCommandType.PlaceBuilding,
+                X = 1,
+                Y = 0,
+                StateId = (int)GridStateId.Conveyor,
+                Orientation = (int)CellOrientation.Right,
+            }), Is.True);
+
+            var state = new MinimalFactoryGameState
+            {
+                Seed = 0,
+                TerrainResourceChannelIndex = 0,
+                MaxFactoryTicks = 10,
+                FactoryTicksExecuted = 0,
+                Phase = MinimalFactoryGamePhase.Running,
+                TerrainLayer = terrainLayer,
+                FactoryLayer = factoryLayer,
+                BuildableRules = rules,
+                CommandQueue = queue,
+                CommandResults = new FactoryCommandResultBuffer(capacity: 8),
+                StopProcessingOnFailure = true,
+            };
+
+            var harness = new FixedStepSimulationHarness<MinimalFactoryGameState, MinimalFactoryGameLoopSystem>(
+                state,
+                new MinimalFactoryGameLoopSystem());
+
+            harness.Tick(1);
+
+            Assert.That(harness.State.CommandResults.Count, Is.EqualTo(1));
+            FactoryCommandResult failedResult = harness.State.CommandResults.GetAt(0);
+            Assert.That(failedResult.Success, Is.False);
+            Assert.That(failedResult.FailureReason, Is.EqualTo(FactoryCommandFailureReason.MissingBuildRule));
+
+            Assert.That(harness.State.FactoryLayer.TryGet(1, 0, out GridCellData notPlaced), Is.True);
+            Assert.That(notPlaced.StateId, Is.EqualTo((int)GridStateId.Empty));
         }
     }
 }
