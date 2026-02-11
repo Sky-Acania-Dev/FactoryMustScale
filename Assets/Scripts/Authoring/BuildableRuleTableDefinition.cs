@@ -7,6 +7,7 @@ namespace FactoryMustScale.Authoring
     public struct BuildableRuleDefinition
     {
         public GridStateId StateId;
+        public TerrainTypeMask AllowedTerrains;
         public ResourceTypeMask AllowedResources;
     }
 
@@ -31,6 +32,7 @@ namespace FactoryMustScale.Authoring
             for (int i = 0; i < _rules.Length; i++)
             {
                 runtimeRules[i].StateId = (int)_rules[i].StateId;
+                runtimeRules[i].AllowedTerrains = _rules[i].AllowedTerrains;
                 runtimeRules[i].AllowedResources = _rules[i].AllowedResources;
             }
 
