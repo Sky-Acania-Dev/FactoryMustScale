@@ -89,6 +89,50 @@ namespace FactoryMustScale.Simulation
             return IsTerrainCellBuildableForRule(terrainLayer, x, y, rule, terrainResourceChannelIndex);
         }
 
+
+        public static bool CanBuildRect(
+            Layer factoryLayer,
+            Layer terrainLayer,
+            int originX,
+            int originY,
+            int width,
+            int height,
+            BuildableRuleData rule,
+            int terrainResourceChannelIndex)
+        {
+            if (factoryLayer == null || terrainLayer == null)
+            {
+                return false;
+            }
+
+            if (width <= 0 || height <= 0)
+            {
+                return false;
+            }
+
+            for (int localY = 0; localY < height; localY++)
+            {
+                int y = originY + localY;
+
+                for (int localX = 0; localX < width; localX++)
+                {
+                    int x = originX + localX;
+
+                    if (!factoryLayer.TryGet(x, y, out GridCellData factoryCell) || factoryCell.StateId != (int)GridStateId.Empty)
+                    {
+                        return false;
+                    }
+
+                    if (!IsTerrainCellBuildableForRule(terrainLayer, x, y, rule, terrainResourceChannelIndex))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
         public static bool CanBuildMultiCell(
             Layer factoryLayer,
             Layer terrainLayer,

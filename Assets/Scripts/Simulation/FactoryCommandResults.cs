@@ -8,6 +8,7 @@ namespace FactoryMustScale.Simulation
         NotBuildable = 3,
         OutOfRange = 4,
         EmptyCell = 5,
+        Unsupported = 6,
     }
 
     public struct FactoryCommandResult

@@ -6,6 +6,7 @@ namespace FactoryMustScale.Simulation
         PlaceBuilding = 1,
         RemoveBuilding = 2,
         RotateBuilding = 3,
+        MoveBuilding = 4,
     }
 
     public struct FactoryCommand
@@ -15,6 +16,10 @@ namespace FactoryMustScale.Simulation
         public int Y;
         public int StateId;
         public int Orientation;
+        public int FootprintWidth;
+        public int FootprintHeight;
+        public int TargetX;
+        public int TargetY;
     }
 
     /// <summary>

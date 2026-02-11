@@ -83,6 +83,9 @@ namespace FactoryMustScale.Simulation
                     case FactoryCommandType.RotateBuilding:
                         ApplyRotateCommand(ref state, command, tickIndex, ref result);
                         break;
+                    case FactoryCommandType.MoveBuilding:
+                        ApplyMoveCommand(ref state, command, tickIndex, ref result);
+                        break;
                     default:
                         result.Success = false;
                         result.FailureReason = FactoryCommandFailureReason.UnknownCommand;
@@ -108,11 +111,16 @@ namespace FactoryMustScale.Simulation
                 return;
             }
 
-            bool canBuild = BuildableRules.CanBuildSingleCell(
+            int footprintWidth = command.FootprintWidth > 0 ? command.FootprintWidth : 1;
+            int footprintHeight = command.FootprintHeight > 0 ? command.FootprintHeight : 1;
+
+            bool canBuild = BuildableRules.CanBuildRect(
                 state.FactoryLayer,
                 state.TerrainLayer,
                 command.X,
                 command.Y,
+                footprintWidth,
+                footprintHeight,
                 buildRule,
                 state.TerrainResourceChannelIndex);
 
@@ -124,11 +132,15 @@ namespace FactoryMustScale.Simulation
             }
 
             int variantId = GridCellData.SetOrientation(0, command.Orientation);
-            if (!state.FactoryLayer.TrySetCellState(command.X, command.Y, command.StateId, variantId, 0u, tickIndex, out _))
+            for (int localY = 0; localY < footprintHeight; localY++)
             {
-                result.Success = false;
-                result.FailureReason = FactoryCommandFailureReason.OutOfRange;
-                return;
+                int y = command.Y + localY;
+
+                for (int localX = 0; localX < footprintWidth; localX++)
+                {
+                    int x = command.X + localX;
+                    state.FactoryLayer.TrySetCellState(x, y, command.StateId, variantId, 0u, tickIndex, out _);
+                }
             }
 
             result.Success = true;
@@ -171,6 +183,70 @@ namespace FactoryMustScale.Simulation
             result.Success = true;
             result.FailureReason = FactoryCommandFailureReason.None;
             result.AppliedStateId = existingCell.StateId;
+        }
+
+        private static void ApplyMoveCommand(ref MinimalFactoryGameState state, FactoryCommand command, int tickIndex, ref FactoryCommandResult result)
+        {
+            if (!state.FactoryLayer.TryGet(command.X, command.Y, out GridCellData sourceCell))
+            {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.OutOfRange;
+                return;
+            }
+
+            if (sourceCell.StateId == (int)GridStateId.Empty)
+            {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.EmptyCell;
+                return;
+            }
+
+            if (command.FootprintWidth > 1 || command.FootprintHeight > 1)
+            {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.Unsupported;
+                return;
+            }
+
+            BuildableRuleData buildRule;
+            if (!BuildableRules.TryGetRule(state.BuildableRules, sourceCell.StateId, out buildRule))
+            {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.MissingBuildRule;
+                return;
+            }
+
+            if (!BuildableRules.CanBuildSingleCell(
+                state.FactoryLayer,
+                state.TerrainLayer,
+                command.TargetX,
+                command.TargetY,
+                buildRule,
+                state.TerrainResourceChannelIndex))
+            {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.NotBuildable;
+                return;
+            }
+
+            if (!state.FactoryLayer.TrySetCellState(command.X, command.Y, (int)GridStateId.Empty, 0, 0u, tickIndex, out _))
+            {
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.OutOfRange;
+                return;
+            }
+
+            if (!state.FactoryLayer.TrySetCellState(command.TargetX, command.TargetY, sourceCell.StateId, sourceCell.VariantId, sourceCell.Flags, tickIndex, out _))
+            {
+                state.FactoryLayer.TrySetCellState(command.X, command.Y, sourceCell.StateId, sourceCell.VariantId, sourceCell.Flags, tickIndex, out _);
+                result.Success = false;
+                result.FailureReason = FactoryCommandFailureReason.OutOfRange;
+                return;
+            }
+
+            result.Success = true;
+            result.FailureReason = FactoryCommandFailureReason.None;
+            result.AppliedStateId = sourceCell.StateId;
         }
 
         private static FactoryCommandResult BuildDefaultResult(int commandIndex, FactoryCommand command)

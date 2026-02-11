@@ -176,5 +176,134 @@ namespace FactoryMustScale.Tests.EditMode
             Assert.That(harness.State.FactoryLayer.TryGet(1, 0, out GridCellData notPlaced), Is.True);
             Assert.That(notPlaced.StateId, Is.EqualTo((int)GridStateId.Empty));
         }
+
+        [Test]
+        public void PlaceBuilding_CanApplyRectangularMultiCellFootprint()
+        {
+            Layer terrainLayer = new Layer(0, 0, 5, 5, payloadChannelCount: 1);
+            Layer factoryLayer = new Layer(0, 0, 5, 5);
+
+            for (int y = 0; y < 5; y++)
+            {
+                for (int x = 0; x < 5; x++)
+                {
+                    terrainLayer.TrySetCellState(x, y, (int)TerrainType.Ground, 0, 0u, currentTick: 0, out _);
+                    terrainLayer.TrySetPayload(x, y, 0, (int)ResourceType.None);
+                    factoryLayer.TrySetCellState(x, y, (int)GridStateId.Empty, 0, 0u, currentTick: 0, out _);
+                }
+            }
+
+            BuildableRuleData[] rules =
+            {
+                new BuildableRuleData
+                {
+                    StateId = (int)GridStateId.CrafterCore,
+                    AllowedTerrains = TerrainTypeMask.Ground,
+                    AllowedResources = ResourceTypeMask.NoneResource,
+                },
+            };
+
+            var queue = new FactoryCommandQueue(capacity: 4);
+            Assert.That(queue.TryEnqueue(new FactoryCommand
+            {
+                Type = FactoryCommandType.PlaceBuilding,
+                X = 1,
+                Y = 1,
+                StateId = (int)GridStateId.CrafterCore,
+                Orientation = (int)CellOrientation.Up,
+                FootprintWidth = 2,
+                FootprintHeight = 2,
+            }), Is.True);
+
+            var state = new MinimalFactoryGameState
+            {
+                TerrainResourceChannelIndex = 0,
+                MaxFactoryTicks = 4,
+                Phase = MinimalFactoryGamePhase.Running,
+                TerrainLayer = terrainLayer,
+                FactoryLayer = factoryLayer,
+                BuildableRules = rules,
+                CommandQueue = queue,
+                CommandResults = new FactoryCommandResultBuffer(capacity: 4),
+            };
+
+            var harness = new FixedStepSimulationHarness<MinimalFactoryGameState, MinimalFactoryGameLoopSystem>(state, new MinimalFactoryGameLoopSystem());
+            harness.Tick(1);
+
+            Assert.That(harness.State.CommandResults.Count, Is.EqualTo(1));
+            Assert.That(harness.State.CommandResults.GetAt(0).Success, Is.True);
+
+            Assert.That(harness.State.FactoryLayer.TryGet(1, 1, out GridCellData c00), Is.True);
+            Assert.That(harness.State.FactoryLayer.TryGet(2, 1, out GridCellData c10), Is.True);
+            Assert.That(harness.State.FactoryLayer.TryGet(1, 2, out GridCellData c01), Is.True);
+            Assert.That(harness.State.FactoryLayer.TryGet(2, 2, out GridCellData c11), Is.True);
+
+            Assert.That(c00.StateId, Is.EqualTo((int)GridStateId.CrafterCore));
+            Assert.That(c10.StateId, Is.EqualTo((int)GridStateId.CrafterCore));
+            Assert.That(c01.StateId, Is.EqualTo((int)GridStateId.CrafterCore));
+            Assert.That(c11.StateId, Is.EqualTo((int)GridStateId.CrafterCore));
+        }
+
+        [Test]
+        public void MoveBuilding_MovesSingleCellBuilding_WhenTargetValid()
+        {
+            Layer terrainLayer = new Layer(0, 0, 4, 4, payloadChannelCount: 1);
+            Layer factoryLayer = new Layer(0, 0, 4, 4);
+
+            for (int y = 0; y < 4; y++)
+            {
+                for (int x = 0; x < 4; x++)
+                {
+                    terrainLayer.TrySetCellState(x, y, (int)TerrainType.Ground, 0, 0u, currentTick: 0, out _);
+                    terrainLayer.TrySetPayload(x, y, 0, (int)ResourceType.None);
+                    factoryLayer.TrySetCellState(x, y, (int)GridStateId.Empty, 0, 0u, currentTick: 0, out _);
+                }
+            }
+
+            int variantId = GridCellData.SetOrientation(0, (int)CellOrientation.Right);
+            factoryLayer.TrySetCellState(1, 1, (int)GridStateId.Conveyor, variantId, 0u, currentTick: 0, out _);
+
+            BuildableRuleData[] rules =
+            {
+                new BuildableRuleData
+                {
+                    StateId = (int)GridStateId.Conveyor,
+                    AllowedTerrains = TerrainTypeMask.Ground,
+                    AllowedResources = ResourceTypeMask.NoneResource,
+                },
+            };
+
+            var queue = new FactoryCommandQueue(capacity: 2);
+            Assert.That(queue.TryEnqueue(new FactoryCommand
+            {
+                Type = FactoryCommandType.MoveBuilding,
+                X = 1,
+                Y = 1,
+                TargetX = 2,
+                TargetY = 1,
+            }), Is.True);
+
+            var state = new MinimalFactoryGameState
+            {
+                TerrainResourceChannelIndex = 0,
+                MaxFactoryTicks = 4,
+                Phase = MinimalFactoryGamePhase.Running,
+                TerrainLayer = terrainLayer,
+                FactoryLayer = factoryLayer,
+                BuildableRules = rules,
+                CommandQueue = queue,
+                CommandResults = new FactoryCommandResultBuffer(capacity: 2),
+            };
+
+            var harness = new FixedStepSimulationHarness<MinimalFactoryGameState, MinimalFactoryGameLoopSystem>(state, new MinimalFactoryGameLoopSystem());
+            harness.Tick(1);
+
+            Assert.That(harness.State.CommandResults.GetAt(0).Success, Is.True);
+            Assert.That(harness.State.FactoryLayer.TryGet(1, 1, out GridCellData oldCell), Is.True);
+            Assert.That(harness.State.FactoryLayer.TryGet(2, 1, out GridCellData movedCell), Is.True);
+            Assert.That(oldCell.StateId, Is.EqualTo((int)GridStateId.Empty));
+            Assert.That(movedCell.StateId, Is.EqualTo((int)GridStateId.Conveyor));
+            Assert.That(GridCellData.GetOrientation(movedCell.VariantId), Is.EqualTo((int)CellOrientation.Right));
+        }
     }
 }
