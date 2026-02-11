@@ -16,6 +16,8 @@ namespace FactoryMustScale.Simulation
         public MinimalFactoryGamePhase Phase;
         public Layer TerrainLayer;
         public Layer FactoryLayer;
+        public BuildableRuleData[] BuildableRules;
+        public FactoryCommandQueue CommandQueue;
     }
 
     /// <summary>
@@ -47,12 +49,85 @@ namespace FactoryMustScale.Simulation
                 return;
             }
 
+            ApplyQueuedCommands(ref state, tickIndex);
+            state.CommandQueue.Clear();
+
             state.FactoryTicksExecuted++;
 
             if (state.FactoryTicksExecuted >= state.MaxFactoryTicks)
             {
                 state.Phase = MinimalFactoryGamePhase.Ended;
             }
+        }
+
+
+        private static void ApplyQueuedCommands(ref MinimalFactoryGameState state, int tickIndex)
+        {
+            int commandCount = state.CommandQueue.Count;
+
+            for (int i = 0; i < commandCount; i++)
+            {
+                FactoryCommand command = state.CommandQueue.GetAt(i);
+
+                switch (command.Type)
+                {
+                    case FactoryCommandType.PlaceBuilding:
+                        ApplyPlaceCommand(ref state, command, tickIndex);
+                        break;
+                    case FactoryCommandType.RemoveBuilding:
+                        ApplyRemoveCommand(ref state, command, tickIndex);
+                        break;
+                    case FactoryCommandType.RotateBuilding:
+                        ApplyRotateCommand(ref state, command, tickIndex);
+                        break;
+                }
+            }
+        }
+
+        private static void ApplyPlaceCommand(ref MinimalFactoryGameState state, FactoryCommand command, int tickIndex)
+        {
+            BuildableRuleData buildRule;
+            if (!BuildableRules.TryGetRule(state.BuildableRules, command.StateId, out buildRule))
+            {
+                return;
+            }
+
+            bool canBuild = BuildableRules.CanBuildSingleCell(
+                state.FactoryLayer,
+                state.TerrainLayer,
+                command.X,
+                command.Y,
+                buildRule,
+                state.TerrainResourceChannelIndex);
+
+            if (!canBuild)
+            {
+                return;
+            }
+
+            int variantId = GridCellData.SetOrientation(0, command.Orientation);
+            state.FactoryLayer.TrySetCellState(command.X, command.Y, command.StateId, variantId, 0u, tickIndex, out _);
+        }
+
+        private static void ApplyRemoveCommand(ref MinimalFactoryGameState state, FactoryCommand command, int tickIndex)
+        {
+            state.FactoryLayer.TrySetCellState(command.X, command.Y, (int)GridStateId.Empty, 0, 0u, tickIndex, out _);
+        }
+
+        private static void ApplyRotateCommand(ref MinimalFactoryGameState state, FactoryCommand command, int tickIndex)
+        {
+            if (!state.FactoryLayer.TryGet(command.X, command.Y, out GridCellData existingCell))
+            {
+                return;
+            }
+
+            if (existingCell.StateId == (int)GridStateId.Empty)
+            {
+                return;
+            }
+
+            int nextVariantId = GridCellData.SetOrientation(existingCell.VariantId, command.Orientation);
+            state.FactoryLayer.TrySetCellState(command.X, command.Y, existingCell.StateId, nextVariantId, existingCell.Flags, tickIndex, out _);
         }
 
         private static void InitializeGame(ref MinimalFactoryGameState state)
