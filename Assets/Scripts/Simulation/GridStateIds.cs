@@ -1,12 +1,11 @@
 namespace FactoryMustScale.Simulation
 {
     /// <summary>
-    /// Shared state-id table for all grid-backed layers.
+    /// Factory/building state-id table for cells in the factory layer.
     ///
     /// Notes:
     /// - GridCellData.StateId remains an int for hot-path flexibility.
-    /// - Terrain and factory entries are grouped into separate numeric ranges for clarity.
-    /// - Terrain layer may still directly use TerrainType values where preferred.
+    /// - Terrain layer states are represented by TerrainType, not GridStateId.
     /// </summary>
     public enum GridStateId
     {
@@ -28,14 +27,5 @@ namespace FactoryMustScale.Simulation
         PowerGenerator = 21,
         PowerPole = 22,
         PowerPylon = 23,
-
-        // Terrain placeholders (optional; TerrainType can also be used directly)
-        TerrainNone = 100,
-        TerrainGround = 101,
-        TerrainWater = 102,
-        TerrainCliff = 103,
-        TerrainBlocked = 104,
-        TerrainResourceDeposit = 105,
-        TerrainGeothermalSite = 106,
     }
 }
