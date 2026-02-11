@@ -1,5 +1,18 @@
 namespace FactoryMustScale.Simulation
 {
+    public enum CellOrientation : byte
+    {
+        Up = 0,
+        Right = 1,
+        Down = 2,
+        Left = 3,
+        UpRight = 4,
+        DownRight = 5,
+        DownLeft = 6,
+        UpLeft = 7,
+        Invalid = 255
+    }
+
     /// <summary>
     /// Practical v1 runtime payload for one deterministic simulation cell.
     ///
@@ -27,15 +40,21 @@ namespace FactoryMustScale.Simulation
         private const int VariantCodeMask = 0b111_1111;
 
         private const int BuildStageShift = 9;
-        private const int BuildStageMask = 0b11;
+        private const int BuildStageMask = 0b1111;
+
+        public const int StageMarkedToConstruct = 0;
+        public const int StageConstructionStart = 1;
+        public const int StageConstructionEnd = 6;
+        public const int StageFullyBuilt = 7;
+        public const int StageDestructionStart = 8;
+        public const int StageDestructionEnd = 14;
+        public const int StageDestroyed = 15;
 
         public const uint FlagPowered = 1u << 0;
         public const uint FlagConnected = 1u << 1;
         public const uint FlagCanAcceptPayload = 1u << 2;
         public const uint FlagCanOutputPayload = 1u << 3;
         public const uint FlagBlocked = 1u << 4;
-        public const uint FlagUnderConstruction = 1u << 5;
-        public const uint FlagMarkedForDestruction = 1u << 6;
 
         // Authoritative structural state for this cell (empty, conveyor, crafter-part, etc...).
         public int StateId;
@@ -55,11 +74,28 @@ namespace FactoryMustScale.Simulation
             return (variantId >> OrientationShift) & OrientationMask;
         }
 
+        public static CellOrientation GetOrientationEnum(int variantId)
+        {
+            int orientationValue = GetOrientation(variantId);
+
+            if (orientationValue < (int)CellOrientation.Up || orientationValue > (int)CellOrientation.UpLeft)
+            {
+                return CellOrientation.Invalid;
+            }
+
+            return (CellOrientation)orientationValue;
+        }
+
         public static int SetOrientation(int variantId, int orientation)
         {
             int clampedOrientation = orientation & OrientationMask;
             int clearedVariantId = variantId & ~(OrientationMask << OrientationShift);
             return clearedVariantId | (clampedOrientation << OrientationShift);
+        }
+
+        public static int SetOrientation(int variantId, CellOrientation orientation)
+        {
+            return SetOrientation(variantId, (int)orientation);
         }
 
         public static byte GetVariantCode(int variantId)
@@ -116,14 +152,16 @@ namespace FactoryMustScale.Simulation
             return HasFlag(flags, FlagBlocked);
         }
 
-        public static bool IsUnderConstruction(uint flags)
+        public static bool IsUnderConstruction(int variantId)
         {
-            return HasFlag(flags, FlagUnderConstruction);
+            int stage = GetConstructionDestructionStage(variantId);
+            return stage >= StageConstructionStart && stage <= StageConstructionEnd;
         }
 
-        public static bool IsMarkedForDestruction(uint flags)
+        public static bool IsMarkedForDestruction(int variantId)
         {
-            return HasFlag(flags, FlagMarkedForDestruction);
+            int stage = GetConstructionDestructionStage(variantId);
+            return stage >= StageDestructionStart && stage <= StageDestructionEnd;
         }
     }
 }
