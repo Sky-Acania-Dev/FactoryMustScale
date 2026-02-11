@@ -1,29 +1,41 @@
 namespace FactoryMustScale.Simulation
 {
     /// <summary>
-    /// Suggested state-id table for simulation cells.
+    /// Shared state-id table for all grid-backed layers.
     ///
     /// Notes:
     /// - GridCellData.StateId remains an int for hot-path flexibility.
-    /// - These constants are a shared meaning table to avoid magic numbers.
-    /// - Values can be extended as additional systems are introduced.
+    /// - Terrain and factory entries are grouped into separate numeric ranges for clarity.
+    /// - Terrain layer may still directly use TerrainType values where preferred.
     /// </summary>
     public enum GridStateId
     {
         Empty = 0,
 
-        // Conveyor family
+        // Factory: transport
         Conveyor = 1,
         Splitter = 2,
         Merger = 3,
 
-        // Multi-cell crafter roles
-        CrafterCore = 10,
-        CrafterInputPort = 11,
-        CrafterOutputPort = 12,
+        // Factory: extraction and processing
+        Miner = 10,
+        CrafterCore = 11,
+        CrafterInputPort = 12,
+        CrafterOutputPort = 13,
 
-        // Other foundational building blocks
+        // Factory: storage and power
         Storage = 20,
-        PowerPole = 21,
+        PowerGenerator = 21,
+        PowerPole = 22,
+        PowerPylon = 23,
+
+        // Terrain placeholders (optional; TerrainType can also be used directly)
+        TerrainNone = 100,
+        TerrainGround = 101,
+        TerrainWater = 102,
+        TerrainCliff = 103,
+        TerrainBlocked = 104,
+        TerrainResourceDeposit = 105,
+        TerrainGeothermalSite = 106,
     }
 }
