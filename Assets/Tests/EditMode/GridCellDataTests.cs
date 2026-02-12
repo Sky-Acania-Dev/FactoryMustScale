@@ -13,7 +13,7 @@ namespace FactoryMustScale.Tests.EditMode
             int updatedVariantId = GridCellData.SetOrientation(initialVariantId, orientation: 2);
 
             Assert.That(GridCellData.GetOrientation(updatedVariantId), Is.EqualTo(2));
-            Assert.That((updatedVariantId >> 2), Is.EqualTo(initialVariantId >> 2));
+            Assert.That((updatedVariantId >> 3), Is.EqualTo(initialVariantId >> 3));
         }
 
         [Test]
@@ -25,6 +25,17 @@ namespace FactoryMustScale.Tests.EditMode
 
             variantId = GridCellData.SetOrientation(variantId, CellOrientation.Left);
             Assert.That(GridCellData.GetOrientationEnum(variantId), Is.EqualTo(CellOrientation.Left));
+        }
+
+        [Test]
+        public void SetAndGetOrientation_PreservesDiagonalDirections()
+        {
+            int variantId = 0;
+            variantId = GridCellData.SetOrientation(variantId, CellOrientation.UpRight);
+            Assert.That(GridCellData.GetOrientationEnum(variantId), Is.EqualTo(CellOrientation.UpRight));
+
+            variantId = GridCellData.SetOrientation(variantId, CellOrientation.DownLeft);
+            Assert.That(GridCellData.GetOrientationEnum(variantId), Is.EqualTo(CellOrientation.DownLeft));
         }
 
         [Test]

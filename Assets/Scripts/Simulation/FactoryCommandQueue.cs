@@ -18,6 +18,7 @@ namespace FactoryMustScale.Simulation
         public int Orientation;
         public int FootprintWidth;
         public int FootprintHeight;
+        public int FootprintId;
         public int TargetX;
         public int TargetY;
     }

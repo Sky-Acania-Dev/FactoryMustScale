@@ -133,6 +133,47 @@ namespace FactoryMustScale.Simulation
             return true;
         }
 
+
+        public static bool CanBuildOffsets(
+            Layer factoryLayer,
+            Layer terrainLayer,
+            int originX,
+            int originY,
+            int[] offsetXs,
+            int[] offsetYs,
+            int offsetCount,
+            BuildableRuleData rule,
+            int terrainResourceChannelIndex)
+        {
+            if (factoryLayer == null || terrainLayer == null || offsetXs == null || offsetYs == null)
+            {
+                return false;
+            }
+
+            if (offsetCount <= 0 || offsetCount > offsetXs.Length || offsetCount > offsetYs.Length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < offsetCount; i++)
+            {
+                int x = originX + offsetXs[i];
+                int y = originY + offsetYs[i];
+
+                if (!factoryLayer.TryGet(x, y, out GridCellData factoryCell) || factoryCell.StateId != (int)GridStateId.Empty)
+                {
+                    return false;
+                }
+
+                if (!IsTerrainCellBuildableForRule(terrainLayer, x, y, rule, terrainResourceChannelIndex))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         public static bool CanBuildMultiCell(
             Layer factoryLayer,
             Layer terrainLayer,

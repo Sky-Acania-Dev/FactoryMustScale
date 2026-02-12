@@ -34,12 +34,12 @@ namespace FactoryMustScale.Simulation
     public struct GridCellData
     {
         private const int OrientationShift = 0;
-        private const int OrientationMask = 0b11;
+        private const int OrientationMask = 0b111;
 
-        private const int VariantCodeShift = 2;
+        private const int VariantCodeShift = 3;
         private const int VariantCodeMask = 0b111_1111;
 
-        private const int BuildStageShift = 9;
+        private const int BuildStageShift = 10;
         private const int BuildStageMask = 0b1111;
 
         public const int StageMarkedToConstruct = 0;

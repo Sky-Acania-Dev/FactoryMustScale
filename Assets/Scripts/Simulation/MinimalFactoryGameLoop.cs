@@ -19,6 +19,7 @@ namespace FactoryMustScale.Simulation
         public BuildableRuleData[] BuildableRules;
         public FactoryCommandQueue CommandQueue;
         public FactoryCommandResultBuffer CommandResults;
+        public FactoryFootprintData[] Footprints;
         public bool StopProcessingOnFailure;
     }
 
@@ -111,18 +112,37 @@ namespace FactoryMustScale.Simulation
                 return;
             }
 
-            int footprintWidth = command.FootprintWidth > 0 ? command.FootprintWidth : 1;
-            int footprintHeight = command.FootprintHeight > 0 ? command.FootprintHeight : 1;
+            bool hasIrregularFootprint = TryGetFootprint(state.Footprints, command.FootprintId, out FactoryFootprintData footprint);
+            bool canBuild;
 
-            bool canBuild = BuildableRules.CanBuildRect(
-                state.FactoryLayer,
-                state.TerrainLayer,
-                command.X,
-                command.Y,
-                footprintWidth,
-                footprintHeight,
-                buildRule,
-                state.TerrainResourceChannelIndex);
+            if (hasIrregularFootprint)
+            {
+                canBuild = BuildableRules.CanBuildOffsets(
+                    state.FactoryLayer,
+                    state.TerrainLayer,
+                    command.X,
+                    command.Y,
+                    footprint.OffsetXs,
+                    footprint.OffsetYs,
+                    footprint.Length,
+                    buildRule,
+                    state.TerrainResourceChannelIndex);
+            }
+            else
+            {
+                int footprintWidth = command.FootprintWidth > 0 ? command.FootprintWidth : 1;
+                int footprintHeight = command.FootprintHeight > 0 ? command.FootprintHeight : 1;
+
+                canBuild = BuildableRules.CanBuildRect(
+                    state.FactoryLayer,
+                    state.TerrainLayer,
+                    command.X,
+                    command.Y,
+                    footprintWidth,
+                    footprintHeight,
+                    buildRule,
+                    state.TerrainResourceChannelIndex);
+            }
 
             if (!canBuild)
             {
@@ -132,14 +152,30 @@ namespace FactoryMustScale.Simulation
             }
 
             int variantId = GridCellData.SetOrientation(0, command.Orientation);
-            for (int localY = 0; localY < footprintHeight; localY++)
-            {
-                int y = command.Y + localY;
 
-                for (int localX = 0; localX < footprintWidth; localX++)
+            if (hasIrregularFootprint)
+            {
+                for (int i = 0; i < footprint.Length; i++)
                 {
-                    int x = command.X + localX;
+                    int x = command.X + footprint.OffsetXs[i];
+                    int y = command.Y + footprint.OffsetYs[i];
                     state.FactoryLayer.TrySetCellState(x, y, command.StateId, variantId, 0u, tickIndex, out _);
+                }
+            }
+            else
+            {
+                int footprintWidth = command.FootprintWidth > 0 ? command.FootprintWidth : 1;
+                int footprintHeight = command.FootprintHeight > 0 ? command.FootprintHeight : 1;
+
+                for (int localY = 0; localY < footprintHeight; localY++)
+                {
+                    int y = command.Y + localY;
+
+                    for (int localX = 0; localX < footprintWidth; localX++)
+                    {
+                        int x = command.X + localX;
+                        state.FactoryLayer.TrySetCellState(x, y, command.StateId, variantId, 0u, tickIndex, out _);
+                    }
                 }
             }
 
@@ -201,7 +237,7 @@ namespace FactoryMustScale.Simulation
                 return;
             }
 
-            if (command.FootprintWidth > 1 || command.FootprintHeight > 1)
+            if (command.FootprintId >= 0 || command.FootprintWidth > 1 || command.FootprintHeight > 1)
             {
                 result.Success = false;
                 result.FailureReason = FactoryCommandFailureReason.Unsupported;
@@ -247,6 +283,30 @@ namespace FactoryMustScale.Simulation
             result.Success = true;
             result.FailureReason = FactoryCommandFailureReason.None;
             result.AppliedStateId = sourceCell.StateId;
+        }
+
+        private static bool TryGetFootprint(FactoryFootprintData[] footprints, int footprintId, out FactoryFootprintData footprint)
+        {
+            if (footprints == null || footprintId < 0 || footprintId >= footprints.Length)
+            {
+                footprint = default;
+                return false;
+            }
+
+            footprint = footprints[footprintId];
+            if (footprint.Length <= 0 || footprint.OffsetXs == null || footprint.OffsetYs == null)
+            {
+                footprint = default;
+                return false;
+            }
+
+            if (footprint.Length > footprint.OffsetXs.Length || footprint.Length > footprint.OffsetYs.Length)
+            {
+                footprint = default;
+                return false;
+            }
+
+            return true;
         }
 
         private static FactoryCommandResult BuildDefaultResult(int commandIndex, FactoryCommand command)

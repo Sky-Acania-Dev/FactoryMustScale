@@ -244,6 +244,86 @@ namespace FactoryMustScale.Tests.EditMode
             Assert.That(c11.StateId, Is.EqualTo((int)GridStateId.CrafterCore));
         }
 
+
+        [Test]
+        public void PlaceBuilding_CanApplyIrregularFootprintOffsets()
+        {
+            Layer terrainLayer = new Layer(0, 0, 6, 6, payloadChannelCount: 1);
+            Layer factoryLayer = new Layer(0, 0, 6, 6);
+
+            for (int y = 0; y < 6; y++)
+            {
+                for (int x = 0; x < 6; x++)
+                {
+                    terrainLayer.TrySetCellState(x, y, (int)TerrainType.Ground, 0, 0u, currentTick: 0, out _);
+                    terrainLayer.TrySetPayload(x, y, 0, (int)ResourceType.None);
+                    factoryLayer.TrySetCellState(x, y, (int)GridStateId.Empty, 0, 0u, currentTick: 0, out _);
+                }
+            }
+
+            BuildableRuleData[] rules =
+            {
+                new BuildableRuleData
+                {
+                    StateId = (int)GridStateId.CrafterCore,
+                    AllowedTerrains = TerrainTypeMask.Ground,
+                    AllowedResources = ResourceTypeMask.NoneResource,
+                },
+            };
+
+            FactoryFootprintData[] footprints =
+            {
+                new FactoryFootprintData
+                {
+                    OffsetXs = new[] { 0, 1, 2, 0, 0 },
+                    OffsetYs = new[] { 0, 0, 0, 1, 2 },
+                    Length = 5,
+                },
+            };
+
+            var queue = new FactoryCommandQueue(capacity: 2);
+            Assert.That(queue.TryEnqueue(new FactoryCommand
+            {
+                Type = FactoryCommandType.PlaceBuilding,
+                X = 2,
+                Y = 2,
+                StateId = (int)GridStateId.CrafterCore,
+                Orientation = (int)CellOrientation.Up,
+                FootprintId = 0,
+            }), Is.True);
+
+            var state = new MinimalFactoryGameState
+            {
+                TerrainResourceChannelIndex = 0,
+                MaxFactoryTicks = 4,
+                Phase = MinimalFactoryGamePhase.Running,
+                TerrainLayer = terrainLayer,
+                FactoryLayer = factoryLayer,
+                BuildableRules = rules,
+                Footprints = footprints,
+                CommandQueue = queue,
+                CommandResults = new FactoryCommandResultBuffer(capacity: 2),
+            };
+
+            var harness = new FixedStepSimulationHarness<MinimalFactoryGameState, MinimalFactoryGameLoopSystem>(state, new MinimalFactoryGameLoopSystem());
+            harness.Tick(1);
+
+            Assert.That(harness.State.CommandResults.GetAt(0).Success, Is.True);
+            Assert.That(harness.State.FactoryLayer.TryGet(2, 2, out GridCellData p0), Is.True);
+            Assert.That(harness.State.FactoryLayer.TryGet(3, 2, out GridCellData p1), Is.True);
+            Assert.That(harness.State.FactoryLayer.TryGet(4, 2, out GridCellData p2), Is.True);
+            Assert.That(harness.State.FactoryLayer.TryGet(2, 3, out GridCellData p3), Is.True);
+            Assert.That(harness.State.FactoryLayer.TryGet(2, 4, out GridCellData p4), Is.True);
+
+            Assert.That(p0.StateId, Is.EqualTo((int)GridStateId.CrafterCore));
+            Assert.That(p1.StateId, Is.EqualTo((int)GridStateId.CrafterCore));
+            Assert.That(p2.StateId, Is.EqualTo((int)GridStateId.CrafterCore));
+            Assert.That(p3.StateId, Is.EqualTo((int)GridStateId.CrafterCore));
+            Assert.That(p4.StateId, Is.EqualTo((int)GridStateId.CrafterCore));
+            Assert.That(harness.State.FactoryLayer.TryGet(3, 3, out GridCellData untouched), Is.True);
+            Assert.That(untouched.StateId, Is.EqualTo((int)GridStateId.Empty));
+        }
+
         [Test]
         public void MoveBuilding_MovesSingleCellBuilding_WhenTargetValid()
         {
