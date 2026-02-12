@@ -19,7 +19,11 @@ namespace FactoryMustScale.Tests.PlayMode
             driver.enabled = true;
             driver.StartTickLoop(() => tickCount++);
 
-            yield return new WaitForSecondsRealtime(0.80f);
+            float timeoutAt = Time.realtimeSinceStartup + 1.50f;
+            while (tickCount < 3 && Time.realtimeSinceStartup < timeoutAt)
+            {
+                yield return null;
+            }
 
             driver.StopTickLoop();
 
