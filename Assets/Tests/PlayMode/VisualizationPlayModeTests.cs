@@ -19,8 +19,8 @@ namespace FactoryMustScale.Tests.PlayMode
             driver.enabled = true;
             driver.StartTickLoop(() => tickCount++);
 
-            yield return new WaitForSecondsRealtime(1.80f);
-            driver.enabled = true;
+            yield return new WaitForSecondsRealtime(0.80f);
+
             driver.StopTickLoop();
 
             Assert.That(tickCount, Is.GreaterThanOrEqualTo(3));

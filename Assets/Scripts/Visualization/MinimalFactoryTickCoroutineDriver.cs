@@ -45,13 +45,19 @@ namespace FactoryMustScale.Visualization
 
         private IEnumerator TickLoop()
         {
-            var wait = new WaitForSecondsRealtime(_tickIntervalSeconds);
+            float interval = _tickIntervalSeconds > 0f ? _tickIntervalSeconds : 0.001f;
+            float nextTickTime = Time.realtimeSinceStartup;
 
             while (enabled)
             {
-                _onTick?.Invoke();
-                Debug.Log($"Tick at {Time.time:F2} seconds. Enabled: " + enabled);
-                yield return wait;
+                float now = Time.realtimeSinceStartup;
+                if (now >= nextTickTime)
+                {
+                    _onTick?.Invoke();
+                    nextTickTime += interval;
+                }
+
+                yield return null;
             }
 
             _tickLoopCoroutine = null;
