@@ -12,6 +12,8 @@ namespace FactoryMustScale.Visualization
     {
         [SerializeField]
         private float _tickIntervalSeconds = 0.25f;
+        [SerializeField]
+        int tickCount = 0;
 
         private Action _onTick;
         private Coroutine _tickLoopCoroutine;
@@ -51,14 +53,13 @@ namespace FactoryMustScale.Visualization
             while (enabled)
             {
                 float now = Time.realtimeSinceStartup;
-                while (now >= nextTickTime)
+                if (now >= nextTickTime)
                 {
                     _onTick?.Invoke();
                     nextTickTime += interval;
-                    Debug.Log($"Tick at {now:F2}s, next tick at {nextTickTime:F2}s");
+                    Debug.Log($"Tick #{tickCount} at {now:F2}s, next tick at {nextTickTime:F2}s");
                 }
-
-                yield return new WaitForSecondsRealtime(0.01f);
+                yield return new WaitForSecondsRealtime(interval);
             }
 
             _tickLoopCoroutine = null;
@@ -67,6 +68,12 @@ namespace FactoryMustScale.Visualization
         private void OnDisable()
         {
             StopTickLoop();
+
+        }
+
+        private void OnEnable()
+        {
+            StartTickLoop(() => tickCount++);
         }
     }
 }
