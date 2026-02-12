@@ -18,7 +18,7 @@ namespace FactoryMustScale.Tests.PlayMode
             int tickCount = 0;
             driver.StartTickLoop(() => tickCount++);
 
-            yield return new WaitForSecondsRealtime(1.00f);
+            yield return new WaitForSecondsRealtime(0.80f);
 
             driver.StopTickLoop();
 
