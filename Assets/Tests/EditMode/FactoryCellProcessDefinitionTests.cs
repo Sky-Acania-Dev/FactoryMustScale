@@ -148,6 +148,82 @@ namespace FactoryMustScale.Tests.EditMode
             Assert.That(GridCellData.GetProcessProfileId(variantId), Is.EqualTo(55));
         }
 
+        [Test]
+        public void FactoryProcessExamples_BasicConveyorPreset_IsValidPassThroughDefinition()
+        {
+            FactoryCellProcessData data = FactoryProcessExamples.CreateBasicConveyorProcessData();
+
+            Assert.That(data.StateId, Is.EqualTo((int)GridStateId.Conveyor));
+            Assert.That(data.ProcessType, Is.EqualTo(FactoryProcessType.PassThrough));
+            Assert.That(data.ProcessDurationTicks, Is.EqualTo(1));
+            Assert.That(data.ProcessProgressPayloadChannelIndex, Is.EqualTo(-1));
+            Assert.That(data.InputSlots.Length, Is.EqualTo(1));
+            Assert.That(data.OutputSlots.Length, Is.EqualTo(1));
+            Assert.That(data.Recipes.Length, Is.EqualTo(0));
+
+            Assert.That(data.InputSlots[0].Directions, Is.EqualTo(CardinalDirectionMask.All));
+            Assert.That(data.OutputSlots[0].Directions, Is.EqualTo(CardinalDirectionMask.All));
+            Assert.That(data.InputSlots[0].MaxItemsPerTick, Is.EqualTo(1));
+            Assert.That(data.OutputSlots[0].MaxItemsPerTick, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void BakeToRuntimeData_BasicConveyorAuthoring_UsesFixedRecipeDimensions()
+        {
+            var definition = ScriptableObject.CreateInstance<FactoryCellProcessDefinition>();
+
+            SetPrivateField(definition, "_stateId", GridStateId.Conveyor);
+            SetPrivateField(definition, "_processType", FactoryProcessType.PassThrough);
+            SetPrivateField(definition, "_processDurationTicks", 1);
+            SetPrivateField(definition, "_processProgressPayloadChannelIndex", -1);
+            SetPrivateField(definition, "_inputSlots", new[]
+            {
+                new FactoryProcessSlotDefinition
+                {
+                    Directions = CardinalDirectionMask.All,
+                    ItemIdFilter = 0,
+                    MaxItemsPerTick = 1,
+                }
+            });
+            SetPrivateField(definition, "_outputSlots", new[]
+            {
+                new FactoryProcessSlotDefinition
+                {
+                    Directions = CardinalDirectionMask.All,
+                    ItemIdFilter = 0,
+                    MaxItemsPerTick = 1,
+                }
+            });
+            SetPrivateField(definition, "_recipes", new[]
+            {
+                new FactoryProcessRecipeDefinition
+                {
+                    ItemInputs = new ProcessItemStackDefinition[0],
+                    ItemOutputs = new[] { new ProcessItemStackDefinition { ItemId = 7001, Amount = 1 } },
+                    ResourceDeltas = new[]
+                    {
+                        new ProcessResourceDeltaDefinition
+                        {
+                            ResourceType = ProcessResourceType.Reserved,
+                            Amount = 0,
+                        }
+                    },
+                }
+            });
+
+            FactoryCellProcessData runtime = definition.BakeToRuntimeData();
+
+            Assert.That(runtime.StateId, Is.EqualTo((int)GridStateId.Conveyor));
+            Assert.That(runtime.ProcessType, Is.EqualTo(FactoryProcessType.PassThrough));
+            Assert.That(runtime.Recipes.Length, Is.EqualTo(1));
+            Assert.That(runtime.Recipes[0].ItemOutputs.Length, Is.EqualTo(2));
+            Assert.That(runtime.Recipes[0].ResourceDeltas.Length, Is.EqualTo(4));
+            Assert.That(runtime.Recipes[0].ItemOutputs[0].ItemId, Is.EqualTo(7001));
+            Assert.That(runtime.Recipes[0].ItemOutputs[1].ItemId, Is.EqualTo(0));
+
+            Object.DestroyImmediate(definition);
+        }
+
         private static void SetPrivateField<TValue>(object target, string fieldName, TValue value)
         {
             FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
