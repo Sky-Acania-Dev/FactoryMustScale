@@ -55,9 +55,10 @@ namespace FactoryMustScale.Visualization
                 {
                     _onTick?.Invoke();
                     nextTickTime += interval;
+                    Debug.Log($"Tick at {now:F2}s, next tick at {nextTickTime:F2}s");
                 }
 
-                yield return null;
+                yield return new WaitForSecondsRealtime(0.01f);
             }
 
             _tickLoopCoroutine = null;
