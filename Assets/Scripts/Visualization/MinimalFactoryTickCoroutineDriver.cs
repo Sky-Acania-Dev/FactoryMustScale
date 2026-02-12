@@ -45,11 +45,12 @@ namespace FactoryMustScale.Visualization
 
         private IEnumerator TickLoop()
         {
-            var wait = new WaitForSeconds(_tickIntervalSeconds);
+            var wait = new WaitForSecondsRealtime(_tickIntervalSeconds);
 
             while (enabled)
             {
                 _onTick?.Invoke();
+                Debug.Log($"Tick at {Time.time:F2} seconds. Enabled: " + enabled);
                 yield return wait;
             }
 

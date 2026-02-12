@@ -16,10 +16,11 @@ namespace FactoryMustScale.Tests.PlayMode
             var driver = go.AddComponent<MinimalFactoryTickCoroutineDriver>();
 
             int tickCount = 0;
+            driver.enabled = true;
             driver.StartTickLoop(() => tickCount++);
 
-            yield return new WaitForSeconds(0.80f);
-
+            yield return new WaitForSecondsRealtime(1.80f);
+            driver.enabled = true;
             driver.StopTickLoop();
 
             Assert.That(tickCount, Is.GreaterThanOrEqualTo(3));

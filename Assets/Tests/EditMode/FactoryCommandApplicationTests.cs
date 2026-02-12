@@ -378,6 +378,7 @@ namespace FactoryMustScale.Tests.EditMode
             var harness = new FixedStepSimulationHarness<MinimalFactoryGameState, MinimalFactoryGameLoopSystem>(state, new MinimalFactoryGameLoopSystem());
             harness.Tick(1);
 
+            Assert.That(harness.State.CommandResults.GetAt(0).FailureReason, Is.EqualTo(FactoryCommandFailureReason.None));
             Assert.That(harness.State.CommandResults.GetAt(0).Success, Is.True);
             Assert.That(harness.State.FactoryLayer.TryGet(1, 1, out GridCellData oldCell), Is.True);
             Assert.That(harness.State.FactoryLayer.TryGet(2, 1, out GridCellData movedCell), Is.True);
