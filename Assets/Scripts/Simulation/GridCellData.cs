@@ -30,6 +30,8 @@ namespace FactoryMustScale.Simulation
     /// Payload note:
     /// - Optional per-cell dynamic payload data should live in layer-owned payload channels that share
     ///   the same index scheme, keeping this struct compact and cache-friendly.
+    /// - Process systems should store dynamic counters (for example process progress ticks) in payload
+    ///   channels, while this struct stores the static process profile id in VariantCode bits.
     /// </summary>
     public struct GridCellData
     {
@@ -103,11 +105,29 @@ namespace FactoryMustScale.Simulation
             return (byte)((variantId >> VariantCodeShift) & VariantCodeMask);
         }
 
+        /// <summary>
+        /// Reads the process profile id packed in VariantCode bits.
+        /// This value maps a placed factory cell to one baked process definition.
+        /// </summary>
+        public static byte GetProcessProfileId(int variantId)
+        {
+            return GetVariantCode(variantId);
+        }
+
         public static int SetVariantCode(int variantId, byte variantCode)
         {
             int normalizedVariantCode = variantCode & VariantCodeMask;
             int clearedVariantId = variantId & ~(VariantCodeMask << VariantCodeShift);
             return clearedVariantId | (normalizedVariantCode << VariantCodeShift);
+        }
+
+        /// <summary>
+        /// Packs the process profile id into VariantCode bits.
+        /// Dynamic process progress should be stored in layer payload channels.
+        /// </summary>
+        public static int SetProcessProfileId(int variantId, byte processProfileId)
+        {
+            return SetVariantCode(variantId, processProfileId);
         }
 
         public static int GetConstructionDestructionStage(int variantId)
