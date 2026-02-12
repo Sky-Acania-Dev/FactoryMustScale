@@ -51,7 +51,7 @@ namespace FactoryMustScale.Visualization
             while (enabled)
             {
                 float now = Time.realtimeSinceStartup;
-                if (now >= nextTickTime)
+                while (now >= nextTickTime)
                 {
                     _onTick?.Invoke();
                     nextTickTime += interval;
