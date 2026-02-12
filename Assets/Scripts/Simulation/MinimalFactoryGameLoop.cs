@@ -237,7 +237,7 @@ namespace FactoryMustScale.Simulation
                 return;
             }
 
-            if (command.FootprintWidth > 1 || command.FootprintHeight > 1)
+            if (command.FootprintId >= 0 || command.FootprintWidth > 1 || command.FootprintHeight > 1)
             {
                 result.Success = false;
                 result.FailureReason = FactoryCommandFailureReason.Unsupported;
