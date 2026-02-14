@@ -1,4 +1,4 @@
-namespace FactoryMustScale.Simulation
+namespace FactoryMustScale.Simulation.Legacy
 {
     /// <summary>
     /// Minimal runtime state used by the dummy system.

@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-namespace FactoryMustScale.Visualization
+namespace FactoryMustScale.Visualization.Legacy
 {
     /// <summary>
     /// Unity adapter that invokes a callback once every fixed interval using a coroutine.

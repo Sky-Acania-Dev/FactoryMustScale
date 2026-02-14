@@ -1,6 +1,8 @@
 using System.Collections;
 using FactoryMustScale.Simulation;
+using FactoryMustScale.Simulation.Legacy;
 using FactoryMustScale.Visualization;
+using FactoryMustScale.Visualization.Legacy;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;

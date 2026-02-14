@@ -1,4 +1,4 @@
-namespace FactoryMustScale.Simulation
+namespace FactoryMustScale.Simulation.Legacy
 {
     public enum MinimalFactoryGamePhase : byte
     {
