@@ -9,8 +9,11 @@ namespace FactoryMustScale.Simulation
 
     public struct MinimalFactoryGameState
     {
+        public const int DefaultFactoryPayloadItemChannel = 0;
+
         public int Seed;
         public int TerrainResourceChannelIndex;
+        public int FactoryPayloadItemChannelIndex;
         public int MaxFactoryTicks;
         public int FactoryTicksExecuted;
         public MinimalFactoryGamePhase Phase;
@@ -21,10 +24,35 @@ namespace FactoryMustScale.Simulation
         public FactoryCommandResultBuffer CommandResults;
         public FactoryFootprintData[] Footprints;
         public bool StopProcessingOnFailure;
+
+        // Conveyor payload scratch buffers.
+        // These arrays are preallocated and reused every tick to avoid hot-path allocations.
+        public int[] ConveyorPayloadRead;
+        public int[] ConveyorPayloadWrite;
+
+        // Intent bookkeeping.
+        // - ConveyorIntentTargetBySource: source cell index -> target cell index (or -1 when no intent).
+        // - ConveyorWinnerSourceByTarget: target cell index -> winning source index (or -1 when no winner).
+        public int[] ConveyorIntentTargetBySource;
+        public int[] ConveyorWinnerSourceByTarget;
+
+        // Resolution bookkeeping.
+        // - ConveyorWinningTargetBySource: source cell index -> target when source won arbitration.
+        // - ConveyorCanExecuteMoveBySource: source cell index -> 1 if move executes this tick, else 0.
+        public int[] ConveyorWinningTargetBySource;
+        public byte[] ConveyorCanExecuteMoveBySource;
+
+        // Cycle-detection scratch data used during phase-2 resolution.
+        public int[] ConveyorVisitStampBySource;
     }
 
     /// <summary>
-    /// Small deterministic game-loop system for early integration testing.
+    /// Legacy minimal deterministic game-loop system for early integration testing.
+    ///
+    /// Note:
+    /// - This type remains for compatibility and existing tests.
+    /// - New production-facing factory tick sequencing should be added to
+    ///   Simulation.Core.FactoryCoreLoopSystem and domain phase systems.
     /// Sequence:
     /// 1) Terrain generation (weighted deterministic layout)
     /// 2) Factory layer initialization
@@ -55,12 +83,330 @@ namespace FactoryMustScale.Simulation
             state.CommandResults.Clear();
             ApplyQueuedCommands(ref state, tickIndex);
             state.CommandQueue.Clear();
+            RunConveyorPayloadPhase(ref state);
 
             state.FactoryTicksExecuted++;
 
             if (state.FactoryTicksExecuted >= state.MaxFactoryTicks)
             {
                 state.Phase = MinimalFactoryGamePhase.Ended;
+            }
+        }
+
+        /// <summary>
+        /// Runs deterministic conveyor payload movement in three explicit phases:
+        /// 1) Intention + target arbitration
+        /// 2) Execution-resolution propagation (supports same-tick chain movement)
+        /// 3) Commit resolved payload changes back to the layer payload channel
+        ///
+        /// This keeps behavior deterministic and allocation-free in the hot path.
+        /// </summary>
+        private static void RunConveyorPayloadPhase(ref MinimalFactoryGameState state)
+        {
+            int payloadChannel = state.FactoryPayloadItemChannelIndex;
+            if (payloadChannel < 0)
+            {
+                payloadChannel = MinimalFactoryGameState.DefaultFactoryPayloadItemChannel;
+            }
+
+            if (state.FactoryLayer == null || payloadChannel >= state.FactoryLayer.PayloadChannelCount)
+            {
+                return;
+            }
+
+            int width = state.FactoryLayer.Width;
+            int height = state.FactoryLayer.Height;
+            int cellCount = width * height;
+
+            EnsureConveyorBuffers(ref state, cellCount);
+
+            // Snapshot read-buffer + initialize write-buffer to current payload values.
+            for (int localY = 0; localY < height; localY++)
+            {
+                int y = state.FactoryLayer.MinY + localY;
+                int rowStart = localY * width;
+
+                for (int localX = 0; localX < width; localX++)
+                {
+                    int x = state.FactoryLayer.MinX + localX;
+                    int index = rowStart + localX;
+                    state.FactoryLayer.TryGetPayload(x, y, payloadChannel, out int payloadValue);
+                    state.ConveyorPayloadRead[index] = payloadValue;
+                    state.ConveyorPayloadWrite[index] = payloadValue;
+                    state.ConveyorIntentTargetBySource[index] = -1;
+                    state.ConveyorWinnerSourceByTarget[index] = -1;
+                    state.ConveyorWinningTargetBySource[index] = -1;
+                    state.ConveyorCanExecuteMoveBySource[index] = 0;
+                }
+            }
+
+            // Phase 1: intention collection + deterministic target arbitration.
+            // Each source can nominate at most one target.
+            // For targets with multiple nominations, smallest source index wins.
+            for (int localY = 0; localY < height; localY++)
+            {
+                int y = state.FactoryLayer.MinY + localY;
+                int rowStart = localY * width;
+
+                for (int localX = 0; localX < width; localX++)
+                {
+                    int x = state.FactoryLayer.MinX + localX;
+                    int sourceIndex = rowStart + localX;
+
+                    if (state.ConveyorPayloadRead[sourceIndex] == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!state.FactoryLayer.TryGet(x, y, out GridCellData sourceCell)
+                        || sourceCell.StateId != (int)GridStateId.Conveyor)
+                    {
+                        continue;
+                    }
+
+                    if (!TryGetConveyorTarget(x, y, sourceCell.VariantId, out int targetX, out int targetY))
+                    {
+                        continue;
+                    }
+
+                    if (!state.FactoryLayer.IsInRange(targetX, targetY)
+                        || !state.FactoryLayer.TryGet(targetX, targetY, out GridCellData targetCell)
+                        || targetCell.StateId != (int)GridStateId.Conveyor)
+                    {
+                        continue;
+                    }
+
+                    int targetLocalX = targetX - state.FactoryLayer.MinX;
+                    int targetLocalY = targetY - state.FactoryLayer.MinY;
+                    int targetIndex = (targetLocalY * width) + targetLocalX;
+
+                    state.ConveyorIntentTargetBySource[sourceIndex] = targetIndex;
+
+                    int existingWinner = state.ConveyorWinnerSourceByTarget[targetIndex];
+                    if (existingWinner < 0 || sourceIndex < existingWinner)
+                    {
+                        state.ConveyorWinnerSourceByTarget[targetIndex] = sourceIndex;
+                    }
+                }
+            }
+
+            // Build winner-only source->target mapping from arbitration output.
+            for (int targetIndex = 0; targetIndex < cellCount; targetIndex++)
+            {
+                int winningSource = state.ConveyorWinnerSourceByTarget[targetIndex];
+                if (winningSource >= 0 && state.ConveyorIntentTargetBySource[winningSource] == targetIndex)
+                {
+                    state.ConveyorWinningTargetBySource[winningSource] = targetIndex;
+                }
+            }
+
+            // Phase 2: execution-resolution propagation.
+            // Rule for winning source S -> target T:
+            // - executable immediately if T is empty in snapshot
+            // - otherwise executable only if T's own winning move executes
+            // This propagation enables same-tick continuous chain movement without relying on iteration artifacts.
+            PropagateExecutableMoves(ref state, cellCount);
+
+            // Detect unresolved occupied cycles and mark only cycle members executable.
+            // This allows loop rotation while still preserving true dead-end blocking.
+            int traversalStamp = 1;
+
+            for (int sourceIndex = 0; sourceIndex < cellCount; sourceIndex++)
+            {
+                if (state.ConveyorCanExecuteMoveBySource[sourceIndex] != 0)
+                {
+                    continue;
+                }
+
+                if (state.ConveyorWinningTargetBySource[sourceIndex] < 0)
+                {
+                    continue;
+                }
+
+                int current = sourceIndex;
+                while (true)
+                {
+                    if (state.ConveyorCanExecuteMoveBySource[current] != 0)
+                    {
+                        break;
+                    }
+
+                    int targetIndex = state.ConveyorWinningTargetBySource[current];
+                    if (targetIndex < 0)
+                    {
+                        break;
+                    }
+
+                    if (state.ConveyorPayloadRead[targetIndex] == 0)
+                    {
+                        break;
+                    }
+
+                    if (state.ConveyorWinningTargetBySource[targetIndex] < 0)
+                    {
+                        break;
+                    }
+
+                    if (state.ConveyorVisitStampBySource[current] == traversalStamp)
+                    {
+                        int cycleStart = current;
+                        int cycleNode = cycleStart;
+
+                        while (true)
+                        {
+                            state.ConveyorCanExecuteMoveBySource[cycleNode] = 1;
+                            cycleNode = state.ConveyorWinningTargetBySource[cycleNode];
+
+                            if (cycleNode == cycleStart)
+                            {
+                                break;
+                            }
+                        }
+
+                        break;
+                    }
+
+                    state.ConveyorVisitStampBySource[current] = traversalStamp;
+                    current = targetIndex;
+                }
+
+                traversalStamp++;
+            }
+
+            // Re-run propagation so predecessors of validated cycles become executable.
+            PropagateExecutableMoves(ref state, cellCount);
+
+            // Phase 3: commit executable moves to write-buffer, then flush to layer payload channel.
+            for (int sourceIndex = 0; sourceIndex < cellCount; sourceIndex++)
+            {
+                if (state.ConveyorCanExecuteMoveBySource[sourceIndex] == 0)
+                {
+                    continue;
+                }
+
+                int targetIndex = state.ConveyorWinningTargetBySource[sourceIndex];
+                if (targetIndex < 0)
+                {
+                    continue;
+                }
+
+                state.ConveyorPayloadWrite[sourceIndex] = 0;
+                state.ConveyorPayloadWrite[targetIndex] = state.ConveyorPayloadRead[sourceIndex];
+            }
+
+            for (int localY = 0; localY < height; localY++)
+            {
+                int y = state.FactoryLayer.MinY + localY;
+                int rowStart = localY * width;
+
+                for (int localX = 0; localX < width; localX++)
+                {
+                    int x = state.FactoryLayer.MinX + localX;
+                    int index = rowStart + localX;
+                    state.FactoryLayer.TrySetPayload(x, y, payloadChannel, state.ConveyorPayloadWrite[index]);
+                }
+            }
+        }
+
+        private static void EnsureConveyorBuffers(ref MinimalFactoryGameState state, int cellCount)
+        {
+            if (state.ConveyorPayloadRead == null || state.ConveyorPayloadRead.Length != cellCount)
+            {
+                state.ConveyorPayloadRead = new int[cellCount];
+            }
+
+            if (state.ConveyorPayloadWrite == null || state.ConveyorPayloadWrite.Length != cellCount)
+            {
+                state.ConveyorPayloadWrite = new int[cellCount];
+            }
+
+            if (state.ConveyorIntentTargetBySource == null || state.ConveyorIntentTargetBySource.Length != cellCount)
+            {
+                state.ConveyorIntentTargetBySource = new int[cellCount];
+            }
+
+            if (state.ConveyorWinnerSourceByTarget == null || state.ConveyorWinnerSourceByTarget.Length != cellCount)
+            {
+                state.ConveyorWinnerSourceByTarget = new int[cellCount];
+            }
+
+            if (state.ConveyorWinningTargetBySource == null || state.ConveyorWinningTargetBySource.Length != cellCount)
+            {
+                state.ConveyorWinningTargetBySource = new int[cellCount];
+            }
+
+            if (state.ConveyorCanExecuteMoveBySource == null || state.ConveyorCanExecuteMoveBySource.Length != cellCount)
+            {
+                state.ConveyorCanExecuteMoveBySource = new byte[cellCount];
+            }
+
+            if (state.ConveyorVisitStampBySource == null || state.ConveyorVisitStampBySource.Length != cellCount)
+            {
+                state.ConveyorVisitStampBySource = new int[cellCount];
+            }
+
+        }
+
+        private static void PropagateExecutableMoves(ref MinimalFactoryGameState state, int cellCount)
+        {
+            bool changed = true;
+
+            while (changed)
+            {
+                changed = false;
+
+                for (int sourceIndex = 0; sourceIndex < cellCount; sourceIndex++)
+                {
+                    if (state.ConveyorCanExecuteMoveBySource[sourceIndex] != 0)
+                    {
+                        continue;
+                    }
+
+                    int targetIndex = state.ConveyorWinningTargetBySource[sourceIndex];
+                    if (targetIndex < 0)
+                    {
+                        continue;
+                    }
+
+                    if (state.ConveyorPayloadRead[targetIndex] == 0)
+                    {
+                        state.ConveyorCanExecuteMoveBySource[sourceIndex] = 1;
+                        changed = true;
+                        continue;
+                    }
+
+                    if (state.ConveyorWinningTargetBySource[targetIndex] >= 0
+                        && state.ConveyorCanExecuteMoveBySource[targetIndex] != 0)
+                    {
+                        state.ConveyorCanExecuteMoveBySource[sourceIndex] = 1;
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        private static bool TryGetConveyorTarget(int x, int y, int variantId, out int targetX, out int targetY)
+        {
+            targetX = x;
+            targetY = y;
+
+            CellOrientation orientation = GridCellData.GetOrientationEnum(variantId);
+            switch (orientation)
+            {
+                case CellOrientation.Up:
+                    targetY = y - 1;
+                    return true;
+                case CellOrientation.Right:
+                    targetX = x + 1;
+                    return true;
+                case CellOrientation.Down:
+                    targetY = y + 1;
+                    return true;
+                case CellOrientation.Left:
+                    targetX = x - 1;
+                    return true;
+                default:
+                    return false;
             }
         }
 
