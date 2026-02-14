@@ -47,7 +47,12 @@ namespace FactoryMustScale.Simulation
     }
 
     /// <summary>
-    /// Small deterministic game-loop system for early integration testing.
+    /// Legacy minimal deterministic game-loop system for early integration testing.
+    ///
+    /// Note:
+    /// - This type remains for compatibility and existing tests.
+    /// - New production-facing factory tick sequencing should be added to
+    ///   Simulation.Core.FactoryCoreLoopSystem and domain phase systems.
     /// Sequence:
     /// 1) Terrain generation (weighted deterministic layout)
     /// 2) Factory layer initialization
