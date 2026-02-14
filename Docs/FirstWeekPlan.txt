@@ -1,0 +1,342 @@
+Here’s a 1-week execution plan optimized for my workflow:
+
+Day (10h, iPhone + Codex): architecture/specs, code generation, refactors, tests scaffolding, task breakdowns
+
+Night (5h, Unity + VS): import/run, PlayMode checks, debugging, integration fixes, manual polish
+
+Week Goal (by end of Day 7)
+You should have:
+
+Core deterministic simulation framework (fixed-step factory tick loop)
+
+Working base cells:
+
+Conveyor
+
+Splitter
+
+Merger
+
+Miner
+
+Crafter
+
+Storage
+
+Power generator
+
+Power distribution node (pylon/pole + radius/wire logic)
+
+Simple proc-gen map with ore patches
+
+Basic input/UI:
+
+place/remove/rotate
+
+select building type
+
+show power status + throughput counters (basic)
+
+High-Level Architecture (lock this on Day 1)
+Use this as your north star to avoid rework:
+
+Simulation
+
+FactorySimulation = custom tick loop (e.g., 4 ticks/sec), not in Update
+
+deterministic, stable order iteration
+
+runtime state in plain structs/arrays
+
+World grid
+
+integer grid coordinates
+
+each cell stores building type + building runtime state index
+
+Item flow
+
+directional IO slots per building
+
+item transfer resolved in deterministic phase order
+
+Power
+
+graph-ish but simple:
+
+generators create supply
+
+pylons/poles propagate “powered region”
+
+consumers check powered flag before production
+
+Unity side
+
+MonoBehaviours only adapter/view/input
+
+no sim logic in MB scripts
+
+Day-by-Day Plan
+Day 1 — Foundation + skeleton
+Day (Codex on iPhone)
+Define all core data contracts:
+
+enums: BuildingType, ItemType, Direction
+
+structs: GridCell, BuildingState_*, ItemBuffer, PowerNodeState
+
+Generate simulation loop skeleton:
+
+Tick() with explicit phases
+
+stable iteration over pre-sorted arrays/lists
+
+Define command/event model:
+
+PlaceBuilding, RemoveBuilding, RotateBuilding
+
+Generate minimal EditMode tests:
+
+deterministic tick reproducibility
+
+same seed map => same ore layout
+
+Night (Unity/VS)
+Integrate core scripts into Unity project
+
+Run tests, fix compile/integration errors
+
+Add lightweight debug logs/tick counter overlay
+
+Milestone: simulation ticks deterministically in editor with no gameplay yet.
+
+Day 2 — Conveyor + storage + miner
+Day
+Implement:
+
+Conveyor transfer logic
+
+Storage input/output rules
+
+Miner extraction (only if ore present)
+
+Add transfer phase design:
+
+produce intents
+
+resolve collisions by deterministic priority
+
+commit state
+
+Add tests:
+
+straight conveyor throughput
+
+storage fill/drain
+
+miner on ore vs no ore
+
+Night
+Hook visuals for these 3 buildings
+
+Manual PlayMode test:
+
+place miner -> conveyor -> storage chain
+
+Tune tick timing + initial rates
+
+Milestone: first complete production chain works.
+
+Day 3 — Splitter + merger
+Day
+Implement splitter behavior:
+
+round-robin or priority mode (pick one now; keep simple)
+
+Implement merger behavior:
+
+deterministic input arbitration
+
+Add edge-case tests:
+
+full output block
+
+simultaneous arrivals
+
+long-run fairness (if round-robin)
+
+Night
+Validate real map placement and orientation
+
+Add arrows/ghost preview for direction
+
+Fix deadlocks/jitter if transfer phases conflict
+
+Milestone: belt networks branch and combine reliably.
+
+Day 4 — Crafter + recipe framework
+Day
+Build generic recipe system:
+
+input requirements
+
+craft time (ticks)
+
+output item
+
+Implement crafting factory state machine:
+
+idle -> consuming -> processing -> output
+
+Add tests:
+
+powered/unpowered behavior placeholder hooks
+
+blocked output stalls craft completion
+
+partial input handling
+
+Night
+Add 2–3 starter recipes
+
+Connect miner outputs to crafter chain in scene
+
+Validate production rates and buffering
+
+Milestone: raw-to-processed pipeline operational.
+
+Day 5 — Power system (generator + distribution)
+Day
+Implement:
+
+generator produces power budget
+
+pylon/pole distributes coverage (radius-based first)
+
+consumers require powered flag
+
+Keep it simple:
+
+BFS/region marking each power tick or when topology changes
+
+Add tests:
+
+consumer off without power
+
+consumer on within range
+
+disconnected region loses power
+
+Night
+Visual feedback:
+
+powered/unpowered tint
+
+optional line gizmos
+
+PlayMode tuning:
+
+range, generator output, consumer draw
+
+Milestone: production meaningfully gated by power.
+
+Day 6 — Proc-gen map + player input/UI
+Day
+Proc-gen:
+
+deterministic seed-based map
+
+ore patches via noise/blobs
+
+Input layer:
+
+select building hotkey/UI button
+
+place/remove/rotate on grid
+
+Basic UI:
+
+selected tool
+
+inventory/cost placeholder (can be infinite for week 1)
+
+power status and simple throughput readout
+
+Night
+Connect camera + grid cursor + placement preview
+
+Verify map generation + miner constraints on ore
+
+Full loop manual test from empty map to running line
+
+Milestone: playable sandbox loop exists.
+
+Day 7 — Integration, balancing, stabilization
+Day
+Codex-driven cleanup:
+
+remove dead code
+
+tighten naming and comments
+
+add quick docs (README gameplay controls + architecture note)
+
+Add regression tests for your top 5 breakages from week
+
+Prepare bug triage checklist
+
+Night
+2–3 long PlayMode sessions
+
+Fix highest-priority bugs only (no feature creep)
+
+Tune rates for “feels good” first 10 minutes
+
+Tag milestone build
+
+Milestone: one-week vertical slice complete and demonstrable.
+
+Suggested Daily Timebox (for your reality)
+During day/iPhone, avoid giant requests. Use batches:
+
+90 min: one narrow feature spec prompt
+
+120 min: ask Codex for implementation + tests
+
+60 min: ask for self-review/risk list
+
+90 min: ask for refactor/cleanup pass
+
+60 min: prep “night integration checklist”
+
+Remaining: issue tracking and next-day prompt drafting
+
+During night/Unity, run this order:
+
+Compile/import fixes
+
+EditMode tests
+
+PlayMode smoke test
+
+Visual/input polish
+
+Log tomorrow’s blockers for Codex
+
+“Definition of Done” for this 1-week milestone
+You’re done if all are true:
+
+Deterministic fixed-step sim runs independent of frame rate
+
+All requested building types function at basic level
+
+Ore map generation works from seed
+
+Player can place/rotate/remove and run a production chain
+
+Power can disable/enable factories
+
+Basic UI communicates tool + essential status
+
+At least a small deterministic test suite exists for core sim logic
+

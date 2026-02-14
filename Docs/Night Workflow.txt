@@ -1,0 +1,169 @@
+FactoryMustScale – Night Cycle Checklist
+Version 1.0
+Purpose: Safe, repeatable nightly workflow
+
+PHASE 0 – CLEAN START (2 minutes)
+
+Open Git Bash in repo root.
+
+Run:
+
+cd "C:\Personal Folder\Z. Unity Projects\FactoryMustScale"
+
+git status
+
+Expected result:
+nothing to commit, working tree clean
+
+If not clean:
+
+Commit changes OR
+
+Stash changes before continuing
+
+Never proceed on a dirty branch.
+
+PHASE 1 – SYNC WITH GITHUB (5 minutes)
+
+Fetch all remote changes:
+
+git fetch --all --prune
+
+Switch to main branch:
+
+git checkout main
+
+Pull latest from GitHub:
+
+git pull origin main
+
+Now local main matches GitHub.
+
+PHASE 2 – REVIEW CODEX PR (10–20 minutes)
+
+On GitHub (web):
+
+Open Pull Request.
+
+Click "Files changed".
+
+Review carefully.
+
+Check for:
+
+Any use of Update() in simulation?
+
+Any UnityEngine usage in pure simulation?
+
+Any LINQ in hot paths?
+
+Any new allocations inside Tick?
+
+Any unordered collections affecting determinism?
+
+Any violation of AGENTS.md?
+
+Any violation of Docs/SimRules.md?
+
+Optional:
+Ask Codex or ChatGPT to review strictly against project rules.
+
+Do NOT merge without reading the diff.
+
+PHASE 3 – MERGE (ONLY IF CLEAN)
+
+If PR passes review:
+
+Click "Merge Pull Request" on GitHub.
+
+Then locally run:
+
+git checkout main
+git pull origin main
+
+Local main must now match GitHub.
+
+PHASE 4 – UNITY VALIDATION (10–15 minutes)
+
+Open Unity project.
+
+Wait for full compilation.
+
+Open Test Runner.
+
+Run all EditMode tests.
+
+Expected:
+
+All tests pass
+
+No nondeterministic failures
+
+If any test fails:
+
+Stop
+
+Fix before proceeding
+
+PHASE 5 – PERFORMANCE CHECK (If Simulation Changed)
+
+Open Unity Profiler.
+
+Enable GC Alloc column.
+
+Run minimal simulation scenario.
+
+Expected:
+
+Zero allocations per tick
+
+If GC allocations appear:
+
+Investigate immediately
+
+Do not ignore
+
+PHASE 6 – LOCAL SANITY CHECK
+
+Run:
+
+git status
+
+Expected:
+working tree clean
+
+If Unity modified ProjectSettings or files:
+
+Inspect changes
+
+Commit only if intentional
+
+PHASE 7 – PLAN NEXT ISSUE (5–10 minutes)
+
+Before writing new code:
+
+Ask:
+
+What is the smallest next vertical slice?
+
+Does it require architectural change?
+
+Can it be isolated in one feature branch?
+
+Create next GitHub Issue.
+
+HARD RULES
+
+Never merge without reviewing diff.
+
+Never merge without running tests locally.
+
+Never start work on a dirty branch.
+
+Never code directly on main.
+
+Never trust Codex without verification.
+
+Determinism and zero-GC are mandatory.
+
+END OF NIGHT CYCLE
