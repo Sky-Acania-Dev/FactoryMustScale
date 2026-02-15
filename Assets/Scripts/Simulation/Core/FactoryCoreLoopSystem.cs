@@ -1,5 +1,7 @@
 namespace FactoryMustScale.Simulation.Core
 {
+    using FactoryMustScale.Simulation.Item;
+
     /// <summary>
     /// Authoritative factory tick step order.
     ///
@@ -40,6 +42,20 @@ namespace FactoryMustScale.Simulation.Core
         // Optional preallocated trace buffer.
         public int[] PhaseTraceBuffer;
         public int PhaseTraceCount;
+
+        // Item simulation inputs.
+        public Layer FactoryLayer;
+        public int FactoryPayloadItemChannelIndex;
+        public ItemTransportAlgorithm ItemTransportAlgorithm;
+
+        // Item transport scratch buffers (reused, no hot-path allocations).
+        public int[] ItemPayloadRead;
+        public int[] ItemPayloadWrite;
+        public int[] ItemIntentTargetBySource;
+        public int[] ItemWinnerSourceByTarget;
+        public int[] ItemWinningTargetBySource;
+        public byte[] ItemCanExecuteMoveBySource;
+        public int[] ItemVisitStampBySource;
     }
 
     /// <summary>
@@ -101,6 +117,7 @@ namespace FactoryMustScale.Simulation.Core
         private static void RunSimulation(ref FactoryCoreLoopState state, int tickIndex)
         {
             state.RunSimulationCount++;
+            ItemTransportPhaseSystem.Run(ref state);
             AppendTrace(ref state, FactoryTickStep.RunSimulation, tickIndex);
         }
 
