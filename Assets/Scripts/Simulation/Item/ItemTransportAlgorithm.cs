@@ -7,6 +7,6 @@ namespace FactoryMustScale.Simulation.Item
     {
         None = 0,
         ConveyorArbitratedPropagationV1 = 1,
-        ConveyorMindustryGraphExperimental = 2,
+        ConveyorGraphBasedExperimental = 2,
     }
 }

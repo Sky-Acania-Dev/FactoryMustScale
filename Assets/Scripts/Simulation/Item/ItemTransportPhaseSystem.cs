@@ -16,8 +16,8 @@ namespace FactoryMustScale.Simulation.Item
                 case ItemTransportAlgorithm.ConveyorArbitratedPropagationV1:
                     ConveyorArbitratedPropagationSystem.Run(ref state);
                     return;
-                case ItemTransportAlgorithm.ConveyorMindustryGraphExperimental:
-                    ConveyorMindustryGraphSystem.Run(ref state);
+                case ItemTransportAlgorithm.ConveyorGraphBasedExperimental:
+                    ConveyorGraphBasedExperimentalSystem.Run(ref state);
                     return;
                 default:
                     return;
