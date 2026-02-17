@@ -55,6 +55,9 @@ namespace FactoryMustScale.Simulation.Core
 
         // Item transport process state and scratch buffers (reused, no hot-path allocations).
         public int ItemTransportProgressThreshold;
+        public SimEventBuffer SimEvents;
+        public int SimEventCapacity;
+        public int[] StorageItemCountByCell;
         public int[] ItemPayloadByCell;
         public int[] ItemTransportProgressByCell;
         public int[] ItemIntentTargetBySource;
@@ -112,6 +115,10 @@ namespace FactoryMustScale.Simulation.Core
 
         private static void InputAndEventHandling(ref FactoryCoreLoopState state, int tickIndex)
         {
+            int simEventCapacity = state.SimEventCapacity > 0 ? state.SimEventCapacity : 128;
+            state.SimEvents.EnsureCapacity(simEventCapacity);
+            state.SimEvents.BeginTick();
+            state.SimEvents.PromoteQueuedEvents();
             ItemTransportPhaseSystem.IngestEvents(ref state);
             state.InputAndEventHandlingCount++;
             AppendTrace(ref state, FactoryTickStep.EventCommit, tickIndex);
