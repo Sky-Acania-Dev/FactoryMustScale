@@ -30,7 +30,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
             Assert.That(harness.State.PhaseTraceBuffer[1], Is.EqualTo((0 * 10) + (int)FactoryTickStep.ApplyEvents));
             Assert.That(harness.State.PhaseTraceBuffer[2], Is.EqualTo((0 * 10) + (int)FactoryTickStep.PrepareSimulation));
             Assert.That(harness.State.PhaseTraceBuffer[3], Is.EqualTo((0 * 10) + (int)FactoryTickStep.RunSimulation));
-            Assert.That(harness.State.PhaseTraceBuffer[4], Is.EqualTo((0 * 10) + (int)FactoryTickStep.ExtractOutputs));
+            Assert.That(harness.State.PhaseTraceBuffer[4], Is.EqualTo((0 * 10) + (int)FactoryTickStep.CommitResult));
         }
 
         [Test]
@@ -59,7 +59,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
             Assert.That(harness.State.ApplyEventsCount, Is.EqualTo(maxTicks));
             Assert.That(harness.State.PrepareSimulationCount, Is.EqualTo(maxTicks));
             Assert.That(harness.State.RunSimulationCount, Is.EqualTo(maxTicks));
-            Assert.That(harness.State.ExtractOutputsCount, Is.EqualTo(maxTicks));
+            Assert.That(harness.State.CommitResultCount, Is.EqualTo(maxTicks));
             Assert.That(harness.State.PhaseTraceCount, Is.EqualTo(maxTicks * 5));
         }
     }

@@ -12,7 +12,7 @@ namespace FactoryMustScale.Simulation.Core
         ApplyEvents = 1,
         PrepareSimulation = 2,
         RunSimulation = 3,
-        ExtractOutputs = 4,
+        CommitResult = 4,
     }
 
     /// <summary>
@@ -35,7 +35,7 @@ namespace FactoryMustScale.Simulation.Core
         public int ApplyEventsCount;
         public int PrepareSimulationCount;
         public int RunSimulationCount;
-        public int ExtractOutputsCount;
+        public int CommitResultCount;
 
         // Optional preallocated trace buffer.
         public int[] PhaseTraceBuffer;
@@ -106,8 +106,8 @@ namespace FactoryMustScale.Simulation.Core
 
         private static void ExtractOutputs(ref FactoryCoreLoopState state, int tickIndex)
         {
-            state.ExtractOutputsCount++;
-            AppendTrace(ref state, FactoryTickStep.ExtractOutputs, tickIndex);
+            state.CommitResultCount++;
+            AppendTrace(ref state, FactoryTickStep.CommitResult, tickIndex);
         }
 
         private static void AppendTrace(ref FactoryCoreLoopState state, FactoryTickStep step, int tickIndex)
