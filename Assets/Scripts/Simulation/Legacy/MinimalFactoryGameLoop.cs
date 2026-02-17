@@ -73,7 +73,11 @@ namespace FactoryMustScale.Simulation.Legacy
         private const int CliffThreshold = 97;
         private const int BlockedThreshold = 99;
 
-        public void Tick(ref MinimalFactoryGameState state, int tickIndex)
+        public void TickCommit(ref MinimalFactoryGameState state, int tickIndex, ref EventBuffer prev)
+        {
+        }
+
+        public void TickCompute(ref MinimalFactoryGameState state, int tickIndex, ref EventBuffer next)
         {
             if (state.Phase == MinimalFactoryGamePhase.PendingInitialization)
             {

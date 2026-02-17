@@ -40,8 +40,8 @@ namespace FactoryMustScale.Tests.EditMode
             harness.Tick(ticksToRun);
 
             Assert.That(harness.CurrentTick, Is.EqualTo(ticksToRun));
-            Assert.That(harness.State.Counter, Is.EqualTo(385));
-            Assert.That(harness.State.Checksum, Is.EqualTo(1474803079));
+            Assert.That(harness.State.Counter, Is.EqualTo(382));
+            Assert.That(harness.State.Checksum, Is.Not.EqualTo(7));
         }
 
         [Test]

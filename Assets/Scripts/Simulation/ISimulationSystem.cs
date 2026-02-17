@@ -11,12 +11,13 @@ namespace FactoryMustScale.Simulation
     /// Assumption:
     /// - Implementers are pure and deterministic for equal initial state + equal tick sequence.
     ///
-    /// Expansion path:
-    /// - Keep this contract stable and add optional input/output buffers as additional parameters when input ingestion
-    ///   and output extraction phases are introduced (without changing fixed-step semantics).
+    /// Two-phase contract:
+    /// - TickCommit is the only phase allowed to mutate authoritative state.
+    /// - TickCompute reads authoritative state and emits next tick events only.
     /// </summary>
     public interface ISimulationSystem<TState>
     {
-        void Tick(ref TState state, int tickIndex);
+        void TickCommit(ref TState state, int tickIndex, ref EventBuffer prev);
+        void TickCompute(ref TState state, int tickIndex, ref EventBuffer next);
     }
 }

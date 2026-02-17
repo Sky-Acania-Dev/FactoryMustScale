@@ -86,10 +86,11 @@ The following are **forbidden** inside per-tick simulation:
 
 ## 5. Tick Order
 
-Simulation order must be:
-1. Input ingestion
-2. State update (pure simulation)
-3. Output extraction (events, debug data)
+Simulation order must be a strict two-phase pipeline:
+1. **Commit / Ingest**: apply previous tick events to authoritative state (the only mutation phase)
+2. **Compute / Propose**: read authoritative state and emit next tick events only (no authoritative mutation)
+
+External input buffering/translation must feed into the Commit phase so all authoritative writes happen in one place.
 
 Rendering reads from simulation state but does not affect it.
 

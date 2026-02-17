@@ -74,7 +74,7 @@ namespace FactoryMustScale.Simulation.Core
     /// </summary>
     public struct FactoryCoreLoopSystem : ISimulationSystem<FactoryCoreLoopState>
     {
-        public void Tick(ref FactoryCoreLoopState state, int tickIndex)
+        public void TickCommit(ref FactoryCoreLoopState state, int tickIndex, ref EventBuffer prev)
         {
             if (!state.Running)
             {
@@ -82,6 +82,15 @@ namespace FactoryMustScale.Simulation.Core
             }
 
             InputAndEventHandling(ref state, tickIndex);
+        }
+
+        public void TickCompute(ref FactoryCoreLoopState state, int tickIndex, ref EventBuffer next)
+        {
+            if (!state.Running)
+            {
+                return;
+            }
+
             CellProcessUpdate(ref state, tickIndex);
             PublishEventsForNextTick(ref state, tickIndex);
 
@@ -94,6 +103,7 @@ namespace FactoryMustScale.Simulation.Core
 
         private static void InputAndEventHandling(ref FactoryCoreLoopState state, int tickIndex)
         {
+            ItemTransportPhaseSystem.IngestEvents(ref state);
             state.InputAndEventHandlingCount++;
             AppendTrace(ref state, FactoryTickStep.InputAndEventHandling, tickIndex);
         }
@@ -107,6 +117,7 @@ namespace FactoryMustScale.Simulation.Core
 
         private static void PublishEventsForNextTick(ref FactoryCoreLoopState state, int tickIndex)
         {
+            ItemTransportPhaseSystem.PublishEvents(ref state);
             state.PublishEventsForNextTickCount++;
             AppendTrace(ref state, FactoryTickStep.PublishEventsForNextTick, tickIndex);
         }
