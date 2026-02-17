@@ -26,9 +26,9 @@ namespace FactoryMustScale.Tests.EditMode.Core
 
             Assert.That(harness.State.FactoryTicksExecuted, Is.EqualTo(1));
             Assert.That(harness.State.PhaseTraceCount, Is.EqualTo(3));
-            Assert.That(harness.State.PhaseTraceBuffer[0], Is.EqualTo((0 * 10) + (int)FactoryTickStep.InputAndEventHandling));
-            Assert.That(harness.State.PhaseTraceBuffer[1], Is.EqualTo((0 * 10) + (int)FactoryTickStep.CellProcessUpdate));
-            Assert.That(harness.State.PhaseTraceBuffer[2], Is.EqualTo((0 * 10) + (int)FactoryTickStep.PublishEventsForNextTick));
+            Assert.That(harness.State.PhaseTraceBuffer[0], Is.EqualTo((0 * 10) + (int)FactoryTickStep.EventCommit));
+            Assert.That(harness.State.PhaseTraceBuffer[1], Is.EqualTo((0 * 10) + (int)FactoryTickStep.CellProcess));
+            Assert.That(harness.State.PhaseTraceBuffer[2], Is.EqualTo((0 * 10) + (int)FactoryTickStep.EventCache));
         }
 
         [Test]

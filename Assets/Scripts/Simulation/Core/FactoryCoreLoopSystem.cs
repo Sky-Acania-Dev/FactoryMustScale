@@ -10,9 +10,18 @@ namespace FactoryMustScale.Simulation.Core
     /// </summary>
     public enum FactoryTickStep : byte
     {
-        InputAndEventHandling = 0,
-        CellProcessUpdate = 1,
-        PublishEventsForNextTick = 2,
+        /// <summary>
+        /// Change state based on cached and incoming events (player input, cell process results from previous tick).
+        /// </summary>
+        EventCommit = 0,
+        /// <summary>
+        /// Run the update process of each cell in deterministic order based on the state after event commit.
+        /// </summary>
+        CellProcess = 1,
+        /// <summary>
+        /// Optional phase if the layer is caching events at layer-level instead of during cell processing. 
+        /// </summary>
+        EventCache = 2,
     }
 
     /// <summary>
@@ -105,21 +114,21 @@ namespace FactoryMustScale.Simulation.Core
         {
             ItemTransportPhaseSystem.IngestEvents(ref state);
             state.InputAndEventHandlingCount++;
-            AppendTrace(ref state, FactoryTickStep.InputAndEventHandling, tickIndex);
+            AppendTrace(ref state, FactoryTickStep.EventCommit, tickIndex);
         }
 
         private static void CellProcessUpdate(ref FactoryCoreLoopState state, int tickIndex)
         {
             state.CellProcessUpdateCount++;
             ItemTransportPhaseSystem.Run(ref state);
-            AppendTrace(ref state, FactoryTickStep.CellProcessUpdate, tickIndex);
+            AppendTrace(ref state, FactoryTickStep.CellProcess, tickIndex);
         }
 
         private static void PublishEventsForNextTick(ref FactoryCoreLoopState state, int tickIndex)
         {
             ItemTransportPhaseSystem.PublishEvents(ref state);
             state.PublishEventsForNextTickCount++;
-            AppendTrace(ref state, FactoryTickStep.PublishEventsForNextTick, tickIndex);
+            AppendTrace(ref state, FactoryTickStep.EventCache, tickIndex);
         }
 
         private static void AppendTrace(ref FactoryCoreLoopState state, FactoryTickStep step, int tickIndex)
