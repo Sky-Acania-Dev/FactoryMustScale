@@ -56,7 +56,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
             harness.Tick(1);
 
             Assert.That(harness.State.ItemMoveEventCount, Is.EqualTo(1));
-            Assert.That(harness.State.ItemMoveEventSourceByIndex[0], Is.EqualTo(1)); // y=0,x=1 => index 1 (lower source index wins)
+            Assert.That(harness.State.ItemMoveEventSourceByIndex[0], Is.EqualTo(1));
         }
 
         [Test]
@@ -82,7 +82,6 @@ namespace FactoryMustScale.Tests.EditMode.Core
             Assert.That(harness.State.ItemMoveEventCount, Is.EqualTo(1));
             Assert.That(harness.State.ItemMoveEventSourceByIndex[0], Is.EqualTo(1));
 
-            // Reset payloads for another merger arbitration round while preserving the merger cursor state.
             FactoryCoreLoopState secondRoundState = harness.State;
             SetPayload(secondRoundState.FactoryLayer, 1, 0, 10);
             SetPayload(secondRoundState.FactoryLayer, 0, 1, 20);
@@ -99,34 +98,81 @@ namespace FactoryMustScale.Tests.EditMode.Core
             Assert.That(secondRoundHarness.State.ItemMoveEventSourceByIndex[0], Is.EqualTo(3));
         }
 
+        [Test]
+        public void GeneratorToStorage_ProducesDeterministicUnifiedEventStream()
+        {
+            FactoryCoreLoopState initialState = CreateState(width: 3, height: 1, ItemTransportAlgorithm.ConveyorArbitratedPropagationV1);
+
+            SetCell(initialState.FactoryLayer, 0, 0, GridStateId.Miner, CellOrientation.Right);
+            SetConveyor(initialState.FactoryLayer, 1, 0, CellOrientation.Right);
+            SetCell(initialState.FactoryLayer, 2, 0, GridStateId.Storage, CellOrientation.Right);
+
+            var firstHarness = new FixedStepSimulationHarness<FactoryCoreLoopState, FactoryCoreLoopSystem>(
+                initialState,
+                new FactoryCoreLoopSystem());
+            var secondHarness = new FixedStepSimulationHarness<FactoryCoreLoopState, FactoryCoreLoopSystem>(
+                initialState,
+                new FactoryCoreLoopSystem());
+
+            firstHarness.Tick(4);
+            secondHarness.Tick(4);
+
+            Assert.That(firstHarness.State.SimEvents.HistoryCount, Is.GreaterThan(0));
+            Assert.That(firstHarness.State.SimEvents.HistoryCount, Is.EqualTo(secondHarness.State.SimEvents.HistoryCount));
+
+            for (int index = 0; index < firstHarness.State.SimEvents.HistoryCount; index++)
+            {
+                Assert.That(firstHarness.State.SimEvents.TryGetHistoryEvent(index, out SimEvent firstEvent), Is.True);
+                Assert.That(secondHarness.State.SimEvents.TryGetHistoryEvent(index, out SimEvent secondEvent), Is.True);
+                Assert.That(firstEvent.Id, Is.EqualTo(secondEvent.Id));
+                Assert.That(firstEvent.SourceIndex, Is.EqualTo(secondEvent.SourceIndex));
+                Assert.That(firstEvent.TargetIndex, Is.EqualTo(secondEvent.TargetIndex));
+                Assert.That(firstEvent.ItemType, Is.EqualTo(secondEvent.ItemType));
+            }
+
+            Assert.That(firstHarness.State.SimEvents.TryGetHistoryEvent(0, out SimEvent firstHistoryEvent), Is.True);
+            Assert.That(firstHistoryEvent.Id, Is.EqualTo(SimEventId.ItemGenerated));
+            Assert.That(firstHarness.State.SimEvents.TryGetHistoryEvent(1, out SimEvent secondHistoryEvent), Is.True);
+            Assert.That(secondHistoryEvent.Id, Is.EqualTo(SimEventId.ItemTransported));
+            Assert.That(firstHarness.State.SimEvents.TryGetHistoryEvent(3, out SimEvent fourthHistoryEvent), Is.True);
+            Assert.That(fourthHistoryEvent.Id, Is.EqualTo(SimEventId.ItemStored));
+
+            Assert.That(firstHarness.State.StorageItemCountByCell[2], Is.GreaterThan(0));
+            AssertPayload(firstHarness.State.FactoryLayer, 2, 0, 0);
+        }
+
         private static FactoryCoreLoopState CreateState(int width, int height, ItemTransportAlgorithm algorithm)
         {
             return new FactoryCoreLoopState
             {
                 Running = true,
-                MaxFactoryTicks = 16,
+                MaxFactoryTicks = 32,
                 FactoryTicksExecuted = 0,
                 FactoryPayloadItemChannelIndex = 0,
                 ItemTransportAlgorithm = algorithm,
                 ItemTransportProgressThreshold = 1,
+                SimEventCapacity = 128,
                 FactoryLayer = new Layer(0, 0, width, height, payloadChannelCount: 1),
                 PhaseTraceBuffer = new int[64],
                 PhaseTraceCount = 0,
             };
         }
 
-        private static void SetConveyor(Layer layer, int x, int y, CellOrientation orientation)
+        private static void SetCell(Layer layer, int x, int y, GridStateId stateId, CellOrientation orientation)
         {
             int variantId = GridCellData.SetOrientation(0, orientation);
-            bool placed = layer.TrySetCellState(x, y, (int)GridStateId.Conveyor, variantId, 0u, currentTick: 0, out _);
+            bool placed = layer.TrySetCellState(x, y, (int)stateId, variantId, 0u, currentTick: 0, out _);
             Assert.That(placed, Is.True);
+        }
+
+        private static void SetConveyor(Layer layer, int x, int y, CellOrientation orientation)
+        {
+            SetCell(layer, x, y, GridStateId.Conveyor, orientation);
         }
 
         private static void SetMerger(Layer layer, int x, int y, CellOrientation orientation)
         {
-            int variantId = GridCellData.SetOrientation(0, orientation);
-            bool placed = layer.TrySetCellState(x, y, (int)GridStateId.Merger, variantId, 0u, currentTick: 0, out _);
-            Assert.That(placed, Is.True);
+            SetCell(layer, x, y, GridStateId.Merger, orientation);
         }
 
         private static void SetPayload(Layer layer, int x, int y, int payload)

@@ -2,51 +2,42 @@ namespace FactoryMustScale.Simulation.Item
 {
     using FactoryMustScale.Simulation.Core;
 
-    /// <summary>
-    /// Deterministic event-queued conveyor/merger transport.
-    /// - Tick N input phase applies events queued in tick N-1.
-    /// - Tick N cell process resolves move intents from progress-ready source cells.
-    /// - Tick N publish phase exposes resolved moves as events for tick N+1.
-    /// </summary>
     public static class ConveyorArbitratedPropagationSystem
     {
         private const int DefaultFactoryPayloadItemChannel = 0;
         private const int DefaultTransportProgressThreshold = 1;
+        private const int DefaultGeneratedItemType = 1;
 
         public static void IngestEvents(ref FactoryCoreLoopState state)
         {
             int payloadChannel = ResolvePayloadChannel(ref state);
-            if (!TryGetLayerShape(state.FactoryLayer, payloadChannel, out int width, out int height, out int cellCount))
+            if (!TryGetLayerShape(state.FactoryLayer, payloadChannel, out _, out _, out int cellCount))
             {
                 return;
             }
 
             EnsureBuffers(ref state, cellCount);
 
-            int eventCount = state.ItemMoveEventCount;
+            int eventCount = state.SimEvents.WorkingCount;
             for (int eventIndex = 0; eventIndex < eventCount; eventIndex++)
             {
-                int sourceIndex = state.ItemMoveEventSourceByIndex[eventIndex];
-                int targetIndex = state.ItemMoveEventTargetByIndex[eventIndex];
-
-                if (sourceIndex < 0 || sourceIndex >= cellCount || targetIndex < 0 || targetIndex >= cellCount)
+                if (!state.SimEvents.TryGetWorkingEvent(eventIndex, out SimEvent simEvent) || simEvent.Id != SimEventId.ItemTransported)
                 {
                     continue;
                 }
 
-                if (state.ItemPayloadByCell[sourceIndex] == 0 || state.ItemPayloadByCell[targetIndex] != 0)
+                SimMutations.TryApplyTransport(state.FactoryLayer, payloadChannel, simEvent, state.FactoryTicksExecuted, ref state.SimEvents);
+
+                if (simEvent.SourceIndex >= 0 && simEvent.SourceIndex < cellCount)
                 {
-                    continue;
+                    state.ItemTransportProgressByCell[simEvent.SourceIndex] = 0;
                 }
 
-                state.ItemPayloadByCell[targetIndex] = state.ItemPayloadByCell[sourceIndex];
-                state.ItemPayloadByCell[sourceIndex] = 0;
-                state.ItemTransportProgressByCell[sourceIndex] = 0;
-                state.ItemTransportProgressByCell[targetIndex] = 0;
+                if (simEvent.TargetIndex >= 0 && simEvent.TargetIndex < cellCount)
+                {
+                    state.ItemTransportProgressByCell[simEvent.TargetIndex] = 0;
+                }
             }
-
-            WritePayloadGrid(state.FactoryLayer, payloadChannel, width, height, state.ItemPayloadByCell);
-            state.ItemMoveEventCount = 0;
         }
 
         public static void ProcessCells(ref FactoryCoreLoopState state)
@@ -58,6 +49,7 @@ namespace FactoryMustScale.Simulation.Item
             }
 
             EnsureBuffers(ref state, cellCount);
+            EnsureStorageBuffer(ref state, cellCount);
             ReadPayloadGrid(state.FactoryLayer, payloadChannel, width, height, state.ItemPayloadByCell);
 
             int progressThreshold = state.ItemTransportProgressThreshold > 0
@@ -70,6 +62,8 @@ namespace FactoryMustScale.Simulation.Item
                 state.ItemWinnerSourceByTarget[index] = -1;
                 state.ItemWinnerCountByTarget[index] = 0;
             }
+
+            int tickIndex = state.FactoryTicksExecuted;
 
             for (int localY = 0; localY < height; localY++)
             {
@@ -86,12 +80,20 @@ namespace FactoryMustScale.Simulation.Item
                         continue;
                     }
 
+                    ApplyLifecycleByCell(
+                        ref state,
+                        sourceCell.StateId,
+                        sourceIndex,
+                        payloadChannel,
+                        tickIndex);
+
+                    int sourcePayload = state.ItemPayloadByCell[sourceIndex];
                     if (!CanOutputItems(sourceCell.StateId))
                     {
                         continue;
                     }
 
-                    if (state.ItemPayloadByCell[sourceIndex] == 0)
+                    if (sourcePayload == 0)
                     {
                         state.ItemTransportProgressByCell[sourceIndex] = 0;
                         continue;
@@ -136,15 +138,15 @@ namespace FactoryMustScale.Simulation.Item
                 }
             }
 
-            ResolveMergerRoundRobinWinners(ref state, width, height, cellCount);
+            ResolveMergerRoundRobinWinners(ref state, width, cellCount);
         }
 
         public static void PublishEvents(ref FactoryCoreLoopState state)
         {
             int payloadChannel = ResolvePayloadChannel(ref state);
-            if (!TryGetLayerShape(state.FactoryLayer, payloadChannel, out int width, out int height, out int cellCount))
+            if (!TryGetLayerShape(state.FactoryLayer, payloadChannel, out _, out _, out int cellCount))
             {
-                state.NextItemMoveEventCount = 0;
+                state.ItemMoveEventCount = 0;
                 return;
             }
 
@@ -159,36 +161,94 @@ namespace FactoryMustScale.Simulation.Item
                     continue;
                 }
 
-                if (nextEventCount >= state.NextItemMoveEventSourceByIndex.Length)
+                if (nextEventCount >= state.ItemMoveEventSourceByIndex.Length)
                 {
                     break;
                 }
 
-                state.NextItemMoveEventSourceByIndex[nextEventCount] = sourceIndex;
-                state.NextItemMoveEventTargetByIndex[nextEventCount] = targetIndex;
+                state.ItemMoveEventSourceByIndex[nextEventCount] = sourceIndex;
+                state.ItemMoveEventTargetByIndex[nextEventCount] = targetIndex;
                 state.ItemTransportProgressByCell[sourceIndex] = 0;
                 nextEventCount++;
-            }
 
-            for (int eventIndex = 0; eventIndex < nextEventCount; eventIndex++)
-            {
-                state.ItemMoveEventSourceByIndex[eventIndex] = state.NextItemMoveEventSourceByIndex[eventIndex];
-                state.ItemMoveEventTargetByIndex[eventIndex] = state.NextItemMoveEventTargetByIndex[eventIndex];
+                SimMutations.QueueTransportForNextTick(
+                    state.FactoryTicksExecuted,
+                    sourceIndex,
+                    targetIndex,
+                    SimEventEndpointKind.Cell,
+                    SimEventEndpointKind.Cell,
+                    state.ItemPayloadByCell[sourceIndex],
+                    ref state.SimEvents);
             }
 
             state.ItemMoveEventCount = nextEventCount;
-            state.NextItemMoveEventCount = 0;
+        }
+
+        private static void ApplyLifecycleByCell(
+            ref FactoryCoreLoopState state,
+            int stateId,
+            int cellIndex,
+            int payloadChannel,
+            int tickIndex)
+        {
+            if (stateId == (int)GridStateId.Miner)
+            {
+                if (state.ItemPayloadByCell[cellIndex] == 0
+                    && SimMutations.TryGenerateItem(
+                        state.FactoryLayer,
+                        payloadChannel,
+                        cellIndex,
+                        tickIndex,
+                        DefaultGeneratedItemType,
+                        ref state.SimEvents))
+                {
+                    state.ItemPayloadByCell[cellIndex] = DefaultGeneratedItemType;
+                }
+
+                return;
+            }
+
+            if (stateId == (int)GridStateId.CrafterCore)
+            {
+                int sourcePayload = state.ItemPayloadByCell[cellIndex];
+                if (sourcePayload != 0)
+                {
+                    int mutatedPayload = sourcePayload + 100;
+                    if (SimMutations.TryMutateItem(
+                        state.FactoryLayer,
+                        payloadChannel,
+                        cellIndex,
+                        tickIndex,
+                        mutatedPayload,
+                        ref state.SimEvents))
+                    {
+                        state.ItemPayloadByCell[cellIndex] = mutatedPayload;
+                    }
+                }
+
+                return;
+            }
+
+            if (stateId == (int)GridStateId.Storage
+                && state.ItemPayloadByCell[cellIndex] != 0
+                && SimMutations.TryStoreItem(
+                    state.FactoryLayer,
+                    payloadChannel,
+                    cellIndex,
+                    cellIndex,
+                    tickIndex,
+                    state.StorageItemCountByCell,
+                    ref state.SimEvents))
+            {
+                state.ItemPayloadByCell[cellIndex] = 0;
+            }
         }
 
         private static int ResolvePayloadChannel(ref FactoryCoreLoopState state)
         {
-            int payloadChannel = state.FactoryPayloadItemChannelIndex;
-            if (payloadChannel < 0)
-            {
-                payloadChannel = DefaultFactoryPayloadItemChannel;
-            }
-
-            return payloadChannel;
+            return state.FactoryPayloadItemChannelIndex < 0
+                ? DefaultFactoryPayloadItemChannel
+                : state.FactoryPayloadItemChannelIndex;
         }
 
         private static bool TryGetLayerShape(Layer layer, int payloadChannel, out int width, out int height, out int cellCount)
@@ -206,6 +266,14 @@ namespace FactoryMustScale.Simulation.Item
             height = layer.Height;
             cellCount = width * height;
             return true;
+        }
+
+        private static void EnsureStorageBuffer(ref FactoryCoreLoopState state, int cellCount)
+        {
+            if (state.StorageItemCountByCell == null || state.StorageItemCountByCell.Length != cellCount)
+            {
+                state.StorageItemCountByCell = new int[cellCount];
+            }
         }
 
         private static void EnsureBuffers(ref FactoryCoreLoopState state, int cellCount)
@@ -249,19 +317,9 @@ namespace FactoryMustScale.Simulation.Item
             {
                 state.ItemMoveEventTargetByIndex = new int[cellCount];
             }
-
-            if (state.NextItemMoveEventSourceByIndex == null || state.NextItemMoveEventSourceByIndex.Length != cellCount)
-            {
-                state.NextItemMoveEventSourceByIndex = new int[cellCount];
-            }
-
-            if (state.NextItemMoveEventTargetByIndex == null || state.NextItemMoveEventTargetByIndex.Length != cellCount)
-            {
-                state.NextItemMoveEventTargetByIndex = new int[cellCount];
-            }
         }
 
-        private static void ResolveMergerRoundRobinWinners(ref FactoryCoreLoopState state, int width, int height, int cellCount)
+        private static void ResolveMergerRoundRobinWinners(ref FactoryCoreLoopState state, int width, int cellCount)
         {
             for (int targetIndex = 0; targetIndex < cellCount; targetIndex++)
             {
@@ -329,12 +387,16 @@ namespace FactoryMustScale.Simulation.Item
 
         private static bool CanOutputItems(int stateId)
         {
-            return stateId == (int)GridStateId.Conveyor || stateId == (int)GridStateId.Merger;
+            return stateId == (int)GridStateId.Conveyor
+                || stateId == (int)GridStateId.Merger
+                || stateId == (int)GridStateId.Miner;
         }
 
         private static bool CanAcceptItems(int stateId)
         {
-            return stateId == (int)GridStateId.Conveyor || stateId == (int)GridStateId.Merger;
+            return stateId == (int)GridStateId.Conveyor
+                || stateId == (int)GridStateId.Merger
+                || stateId == (int)GridStateId.Storage;
         }
 
         private static bool TryGetOutputTarget(int x, int y, int variantId, out int targetX, out int targetY)
@@ -374,22 +436,6 @@ namespace FactoryMustScale.Simulation.Item
                     int x = layer.MinX + localX;
                     int index = rowStart + localX;
                     layer.TryGetPayload(x, y, payloadChannel, out destination[index]);
-                }
-            }
-        }
-
-        private static void WritePayloadGrid(Layer layer, int payloadChannel, int width, int height, int[] source)
-        {
-            for (int localY = 0; localY < height; localY++)
-            {
-                int y = layer.MinY + localY;
-                int rowStart = localY * width;
-
-                for (int localX = 0; localX < width; localX++)
-                {
-                    int x = layer.MinX + localX;
-                    int index = rowStart + localX;
-                    layer.TrySetPayload(x, y, payloadChannel, source[index]);
                 }
             }
         }
