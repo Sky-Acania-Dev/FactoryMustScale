@@ -30,20 +30,37 @@ namespace FactoryMustScale.Simulation
     public sealed class FixedStepSimulationHarness<TState, TSystem>
         where TSystem : struct, ISimulationSystem<TState>
     {
+        private const int DefaultEventBufferCapacity = 1024;
+
         private TState _state;
         private TSystem _system;
         private int _currentTick;
+        private EventBuffer _eventsA;
+        private EventBuffer _eventsB;
+        private bool _commitReadsBufferA;
 
         public FixedStepSimulationHarness(TState initialState, TSystem system)
+            : this(initialState, system, DefaultEventBufferCapacity)
+        {
+        }
+
+        public FixedStepSimulationHarness(TState initialState, TSystem system, int eventBufferCapacity)
         {
             _state = initialState;
             _system = system;
             _currentTick = 0;
+            _eventsA = new EventBuffer(eventBufferCapacity);
+            _eventsB = new EventBuffer(eventBufferCapacity);
+            _commitReadsBufferA = true;
         }
 
         public int CurrentTick => _currentTick;
 
         public TState State => _state;
+
+        public EventBuffer CommitBuffer => _commitReadsBufferA ? _eventsA : _eventsB;
+
+        public EventBuffer NextBuffer => _commitReadsBufferA ? _eventsB : _eventsA;
 
         public void Tick(int tickCount)
         {
@@ -54,9 +71,40 @@ namespace FactoryMustScale.Simulation
 
             for (int i = 0; i < tickCount; i++)
             {
-                _system.Tick(ref _state, _currentTick);
+                TickCommitOnly();
+                TickComputeOnly();
+                SwapBuffers();
                 _currentTick++;
             }
+        }
+
+        public void TickCommitOnly()
+        {
+            if (_commitReadsBufferA)
+            {
+                _system.TickCommit(ref _state, _currentTick, ref _eventsA);
+                return;
+            }
+
+            _system.TickCommit(ref _state, _currentTick, ref _eventsB);
+        }
+
+        public void TickComputeOnly()
+        {
+            if (_commitReadsBufferA)
+            {
+                _eventsB.Clear();
+                _system.TickCompute(ref _state, _currentTick, ref _eventsB);
+                return;
+            }
+
+            _eventsA.Clear();
+            _system.TickCompute(ref _state, _currentTick, ref _eventsA);
+        }
+
+        private void SwapBuffers()
+        {
+            _commitReadsBufferA = !_commitReadsBufferA;
         }
     }
 }

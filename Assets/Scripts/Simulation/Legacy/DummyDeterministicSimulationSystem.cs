@@ -45,12 +45,31 @@ namespace FactoryMustScale.Simulation.Legacy
         private const int ChecksumMultiplier = 1664525;
         private const int ChecksumIncrement = 1013904223;
 
-        public void Tick(ref DummySimulationState state, int tickIndex)
+        public void TickCommit(ref DummySimulationState state, int tickIndex, ref EventBuffer prev)
+        {
+            for (int i = 0; i < prev.Count; i++)
+            {
+                if (!prev.TryGetAt(i, out EventBuffer.EventRecord record))
+                {
+                    continue;
+                }
+
+                state.Counter += record.A;
+                state.Checksum += record.B;
+            }
+        }
+
+        public void TickCompute(ref DummySimulationState state, int tickIndex, ref EventBuffer next)
         {
             unchecked
             {
-                state.Counter += CounterStep;
-                state.Checksum = (state.Checksum * ChecksumMultiplier) + ChecksumIncrement + state.Counter + tickIndex;
+                EventBuffer.EventRecord record = default;
+                record.TargetIndex = 0;
+                record.OpCode = 1;
+                record.A = CounterStep;
+                record.B = (state.Checksum * ChecksumMultiplier) + ChecksumIncrement + state.Counter + tickIndex;
+                record.SourceIndex = 0;
+                next.Append(record);
             }
         }
     }
