@@ -25,12 +25,10 @@ namespace FactoryMustScale.Tests.EditMode.Core
             harness.Tick(1);
 
             Assert.That(harness.State.FactoryTicksExecuted, Is.EqualTo(1));
-            Assert.That(harness.State.PhaseTraceCount, Is.EqualTo(5));
-            Assert.That(harness.State.PhaseTraceBuffer[0], Is.EqualTo((0 * 10) + (int)FactoryTickStep.IngestEvents));
-            Assert.That(harness.State.PhaseTraceBuffer[1], Is.EqualTo((0 * 10) + (int)FactoryTickStep.ApplyEvents));
-            Assert.That(harness.State.PhaseTraceBuffer[2], Is.EqualTo((0 * 10) + (int)FactoryTickStep.PrepareSimulation));
-            Assert.That(harness.State.PhaseTraceBuffer[3], Is.EqualTo((0 * 10) + (int)FactoryTickStep.RunSimulation));
-            Assert.That(harness.State.PhaseTraceBuffer[4], Is.EqualTo((0 * 10) + (int)FactoryTickStep.CommitResult));
+            Assert.That(harness.State.PhaseTraceCount, Is.EqualTo(3));
+            Assert.That(harness.State.PhaseTraceBuffer[0], Is.EqualTo((0 * 10) + (int)FactoryTickStep.InputAndEventHandling));
+            Assert.That(harness.State.PhaseTraceBuffer[1], Is.EqualTo((0 * 10) + (int)FactoryTickStep.CellProcessUpdate));
+            Assert.That(harness.State.PhaseTraceBuffer[2], Is.EqualTo((0 * 10) + (int)FactoryTickStep.PublishEventsForNextTick));
         }
 
         [Test]
@@ -55,12 +53,10 @@ namespace FactoryMustScale.Tests.EditMode.Core
 
             Assert.That(harness.State.FactoryTicksExecuted, Is.EqualTo(maxTicks));
             Assert.That(harness.State.Running, Is.False);
-            Assert.That(harness.State.IngestEventsCount, Is.EqualTo(maxTicks));
-            Assert.That(harness.State.ApplyEventsCount, Is.EqualTo(maxTicks));
-            Assert.That(harness.State.PrepareSimulationCount, Is.EqualTo(maxTicks));
-            Assert.That(harness.State.RunSimulationCount, Is.EqualTo(maxTicks));
-            Assert.That(harness.State.CommitResultCount, Is.EqualTo(maxTicks));
-            Assert.That(harness.State.PhaseTraceCount, Is.EqualTo(maxTicks * 5));
+            Assert.That(harness.State.InputAndEventHandlingCount, Is.EqualTo(maxTicks));
+            Assert.That(harness.State.CellProcessUpdateCount, Is.EqualTo(maxTicks));
+            Assert.That(harness.State.PublishEventsForNextTickCount, Is.EqualTo(maxTicks));
+            Assert.That(harness.State.PhaseTraceCount, Is.EqualTo(maxTicks * 3));
         }
     }
 }
