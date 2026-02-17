@@ -44,14 +44,22 @@ namespace FactoryMustScale.Simulation.Core
         public int FactoryPayloadItemChannelIndex;
         public ItemTransportAlgorithm ItemTransportAlgorithm;
 
-        // Item transport scratch buffers (reused, no hot-path allocations).
-        public int[] ItemPayloadRead;
-        public int[] ItemPayloadWrite;
+        // Item transport process state and scratch buffers (reused, no hot-path allocations).
+        public int ItemTransportProgressThreshold;
+        public int[] ItemPayloadByCell;
+        public int[] ItemTransportProgressByCell;
         public int[] ItemIntentTargetBySource;
         public int[] ItemWinnerSourceByTarget;
-        public int[] ItemWinningTargetBySource;
-        public byte[] ItemCanExecuteMoveBySource;
-        public int[] ItemVisitStampBySource;
+        public int[] ItemWinnerCountByTarget;
+        public int[] ItemMergerRoundRobinCursorByCell;
+
+        // Item transport move events queued for current and next tick.
+        public int[] ItemMoveEventSourceByIndex;
+        public int[] ItemMoveEventTargetByIndex;
+        public int ItemMoveEventCount;
+        public int[] NextItemMoveEventSourceByIndex;
+        public int[] NextItemMoveEventTargetByIndex;
+        public int NextItemMoveEventCount;
     }
 
     /// <summary>

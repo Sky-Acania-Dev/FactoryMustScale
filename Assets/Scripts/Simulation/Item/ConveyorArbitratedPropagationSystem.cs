@@ -3,49 +3,72 @@ namespace FactoryMustScale.Simulation.Item
     using FactoryMustScale.Simulation.Core;
 
     /// <summary>
-    /// Deterministic conveyor payload movement with source-target arbitration and same-tick propagation.
+    /// Deterministic event-queued conveyor/merger transport.
+    /// - Tick N input phase applies events queued in tick N-1.
+    /// - Tick N cell process resolves move intents from progress-ready source cells.
+    /// - Tick N publish phase exposes resolved moves as events for tick N+1.
     /// </summary>
     public static class ConveyorArbitratedPropagationSystem
     {
         private const int DefaultFactoryPayloadItemChannel = 0;
+        private const int DefaultTransportProgressThreshold = 1;
 
-        public static void Run(ref FactoryCoreLoopState state)
+        public static void IngestEvents(ref FactoryCoreLoopState state)
         {
-            int payloadChannel = state.FactoryPayloadItemChannelIndex;
-            if (payloadChannel < 0)
-            {
-                payloadChannel = DefaultFactoryPayloadItemChannel;
-            }
-
-            if (state.FactoryLayer == null || payloadChannel >= state.FactoryLayer.PayloadChannelCount)
+            int payloadChannel = ResolvePayloadChannel(ref state);
+            if (!TryGetLayerShape(state.FactoryLayer, payloadChannel, out int width, out int height, out int cellCount))
             {
                 return;
             }
 
-            int width = state.FactoryLayer.Width;
-            int height = state.FactoryLayer.Height;
-            int cellCount = width * height;
-
             EnsureBuffers(ref state, cellCount);
 
-            for (int localY = 0; localY < height; localY++)
+            int eventCount = state.ItemMoveEventCount;
+            for (int eventIndex = 0; eventIndex < eventCount; eventIndex++)
             {
-                int y = state.FactoryLayer.MinY + localY;
-                int rowStart = localY * width;
+                int sourceIndex = state.ItemMoveEventSourceByIndex[eventIndex];
+                int targetIndex = state.ItemMoveEventTargetByIndex[eventIndex];
 
-                for (int localX = 0; localX < width; localX++)
+                if (sourceIndex < 0 || sourceIndex >= cellCount || targetIndex < 0 || targetIndex >= cellCount)
                 {
-                    int x = state.FactoryLayer.MinX + localX;
-                    int sourceIndex = rowStart + localX;
-
-                    state.FactoryLayer.TryGetPayload(x, y, payloadChannel, out int payloadValue);
-                    state.ItemPayloadRead[sourceIndex] = payloadValue;
-                    state.ItemPayloadWrite[sourceIndex] = payloadValue;
-                    state.ItemIntentTargetBySource[sourceIndex] = -1;
-                    state.ItemWinnerSourceByTarget[sourceIndex] = -1;
-                    state.ItemWinningTargetBySource[sourceIndex] = -1;
-                    state.ItemCanExecuteMoveBySource[sourceIndex] = 0;
+                    continue;
                 }
+
+                if (state.ItemPayloadByCell[sourceIndex] == 0 || state.ItemPayloadByCell[targetIndex] != 0)
+                {
+                    continue;
+                }
+
+                state.ItemPayloadByCell[targetIndex] = state.ItemPayloadByCell[sourceIndex];
+                state.ItemPayloadByCell[sourceIndex] = 0;
+                state.ItemTransportProgressByCell[sourceIndex] = 0;
+                state.ItemTransportProgressByCell[targetIndex] = 0;
+            }
+
+            WritePayloadGrid(state.FactoryLayer, payloadChannel, width, height, state.ItemPayloadByCell);
+            state.ItemMoveEventCount = 0;
+        }
+
+        public static void ProcessCells(ref FactoryCoreLoopState state)
+        {
+            int payloadChannel = ResolvePayloadChannel(ref state);
+            if (!TryGetLayerShape(state.FactoryLayer, payloadChannel, out int width, out int height, out int cellCount))
+            {
+                return;
+            }
+
+            EnsureBuffers(ref state, cellCount);
+            ReadPayloadGrid(state.FactoryLayer, payloadChannel, width, height, state.ItemPayloadByCell);
+
+            int progressThreshold = state.ItemTransportProgressThreshold > 0
+                ? state.ItemTransportProgressThreshold
+                : DefaultTransportProgressThreshold;
+
+            for (int index = 0; index < cellCount; index++)
+            {
+                state.ItemIntentTargetBySource[index] = -1;
+                state.ItemWinnerSourceByTarget[index] = -1;
+                state.ItemWinnerCountByTarget[index] = 0;
             }
 
             for (int localY = 0; localY < height; localY++)
@@ -58,25 +81,37 @@ namespace FactoryMustScale.Simulation.Item
                     int x = state.FactoryLayer.MinX + localX;
                     int sourceIndex = rowStart + localX;
 
-                    if (state.ItemPayloadRead[sourceIndex] == 0)
+                    if (!state.FactoryLayer.TryGet(x, y, out GridCellData sourceCell))
                     {
                         continue;
                     }
 
-                    if (!state.FactoryLayer.TryGet(x, y, out GridCellData sourceCell)
-                        || sourceCell.StateId != (int)GridStateId.Conveyor)
+                    if (!CanOutputItems(sourceCell.StateId))
                     {
                         continue;
                     }
 
-                    if (!TryGetConveyorTarget(x, y, sourceCell.VariantId, out int targetX, out int targetY))
+                    if (state.ItemPayloadByCell[sourceIndex] == 0)
+                    {
+                        state.ItemTransportProgressByCell[sourceIndex] = 0;
+                        continue;
+                    }
+
+                    int nextProgress = state.ItemTransportProgressByCell[sourceIndex] + 1;
+                    state.ItemTransportProgressByCell[sourceIndex] = nextProgress;
+                    if (nextProgress < progressThreshold)
+                    {
+                        continue;
+                    }
+
+                    if (!TryGetOutputTarget(x, y, sourceCell.VariantId, out int targetX, out int targetY))
                     {
                         continue;
                     }
 
                     if (!state.FactoryLayer.IsInRange(targetX, targetY)
                         || !state.FactoryLayer.TryGet(targetX, targetY, out GridCellData targetCell)
-                        || targetCell.StateId != (int)GridStateId.Conveyor)
+                        || !CanAcceptItems(targetCell.StateId))
                     {
                         continue;
                     }
@@ -85,7 +120,13 @@ namespace FactoryMustScale.Simulation.Item
                     int targetLocalY = targetY - state.FactoryLayer.MinY;
                     int targetIndex = (targetLocalY * width) + targetLocalX;
 
+                    if (state.ItemPayloadByCell[targetIndex] != 0)
+                    {
+                        continue;
+                    }
+
                     state.ItemIntentTargetBySource[sourceIndex] = targetIndex;
+                    state.ItemWinnerCountByTarget[targetIndex]++;
 
                     int existingWinner = state.ItemWinnerSourceByTarget[targetIndex];
                     if (existingWinner < 0 || sourceIndex < existingWinner)
@@ -95,131 +136,88 @@ namespace FactoryMustScale.Simulation.Item
                 }
             }
 
+            ResolveMergerRoundRobinWinners(ref state, width, height, cellCount);
+        }
+
+        public static void PublishEvents(ref FactoryCoreLoopState state)
+        {
+            int payloadChannel = ResolvePayloadChannel(ref state);
+            if (!TryGetLayerShape(state.FactoryLayer, payloadChannel, out int width, out int height, out int cellCount))
+            {
+                state.NextItemMoveEventCount = 0;
+                return;
+            }
+
+            EnsureBuffers(ref state, cellCount);
+
+            int nextEventCount = 0;
             for (int targetIndex = 0; targetIndex < cellCount; targetIndex++)
             {
-                int winningSource = state.ItemWinnerSourceByTarget[targetIndex];
-                if (winningSource >= 0 && state.ItemIntentTargetBySource[winningSource] == targetIndex)
-                {
-                    state.ItemWinningTargetBySource[winningSource] = targetIndex;
-                }
-            }
-
-            PropagateExecutableMoves(ref state, cellCount);
-
-            int traversalStamp = 1;
-            for (int sourceIndex = 0; sourceIndex < cellCount; sourceIndex++)
-            {
-                if (state.ItemCanExecuteMoveBySource[sourceIndex] != 0)
+                int sourceIndex = state.ItemWinnerSourceByTarget[targetIndex];
+                if (sourceIndex < 0 || state.ItemIntentTargetBySource[sourceIndex] != targetIndex)
                 {
                     continue;
                 }
 
-                if (state.ItemWinningTargetBySource[sourceIndex] < 0)
+                if (nextEventCount >= state.NextItemMoveEventSourceByIndex.Length)
                 {
-                    continue;
+                    break;
                 }
 
-                int current = sourceIndex;
-                while (true)
-                {
-                    if (state.ItemCanExecuteMoveBySource[current] != 0)
-                    {
-                        break;
-                    }
-
-                    int targetIndex = state.ItemWinningTargetBySource[current];
-                    if (targetIndex < 0)
-                    {
-                        break;
-                    }
-
-                    if (state.ItemPayloadRead[targetIndex] == 0)
-                    {
-                        break;
-                    }
-
-                    if (state.ItemWinningTargetBySource[targetIndex] < 0)
-                    {
-                        break;
-                    }
-
-                    if (state.ItemVisitStampBySource[current] == traversalStamp)
-                    {
-                        int cycleStart = current;
-                        int cycleNode = cycleStart;
-
-                        while (true)
-                        {
-                            state.ItemCanExecuteMoveBySource[cycleNode] = 1;
-                            cycleNode = state.ItemWinningTargetBySource[cycleNode];
-
-                            if (cycleNode == cycleStart)
-                            {
-                                break;
-                            }
-                        }
-
-                        break;
-                    }
-
-                    state.ItemVisitStampBySource[current] = traversalStamp;
-                    current = targetIndex;
-                }
-
-                traversalStamp++;
+                state.NextItemMoveEventSourceByIndex[nextEventCount] = sourceIndex;
+                state.NextItemMoveEventTargetByIndex[nextEventCount] = targetIndex;
+                state.ItemTransportProgressByCell[sourceIndex] = 0;
+                nextEventCount++;
             }
 
-            PropagateExecutableMoves(ref state, cellCount);
-
-            // Commit in two passes to avoid chain-overwrite bugs.
-            for (int sourceIndex = 0; sourceIndex < cellCount; sourceIndex++)
+            for (int eventIndex = 0; eventIndex < nextEventCount; eventIndex++)
             {
-                if (state.ItemCanExecuteMoveBySource[sourceIndex] != 0)
-                {
-                    state.ItemPayloadWrite[sourceIndex] = 0;
-                }
+                state.ItemMoveEventSourceByIndex[eventIndex] = state.NextItemMoveEventSourceByIndex[eventIndex];
+                state.ItemMoveEventTargetByIndex[eventIndex] = state.NextItemMoveEventTargetByIndex[eventIndex];
             }
 
-            for (int sourceIndex = 0; sourceIndex < cellCount; sourceIndex++)
+            state.ItemMoveEventCount = nextEventCount;
+            state.NextItemMoveEventCount = 0;
+        }
+
+        private static int ResolvePayloadChannel(ref FactoryCoreLoopState state)
+        {
+            int payloadChannel = state.FactoryPayloadItemChannelIndex;
+            if (payloadChannel < 0)
             {
-                if (state.ItemCanExecuteMoveBySource[sourceIndex] == 0)
-                {
-                    continue;
-                }
-
-                int targetIndex = state.ItemWinningTargetBySource[sourceIndex];
-                if (targetIndex < 0)
-                {
-                    continue;
-                }
-
-                state.ItemPayloadWrite[targetIndex] = state.ItemPayloadRead[sourceIndex];
+                payloadChannel = DefaultFactoryPayloadItemChannel;
             }
 
-            for (int localY = 0; localY < height; localY++)
+            return payloadChannel;
+        }
+
+        private static bool TryGetLayerShape(Layer layer, int payloadChannel, out int width, out int height, out int cellCount)
+        {
+            width = 0;
+            height = 0;
+            cellCount = 0;
+
+            if (layer == null || payloadChannel >= layer.PayloadChannelCount)
             {
-                int y = state.FactoryLayer.MinY + localY;
-                int rowStart = localY * width;
-
-                for (int localX = 0; localX < width; localX++)
-                {
-                    int x = state.FactoryLayer.MinX + localX;
-                    int index = rowStart + localX;
-                    state.FactoryLayer.TrySetPayload(x, y, payloadChannel, state.ItemPayloadWrite[index]);
-                }
+                return false;
             }
+
+            width = layer.Width;
+            height = layer.Height;
+            cellCount = width * height;
+            return true;
         }
 
         private static void EnsureBuffers(ref FactoryCoreLoopState state, int cellCount)
         {
-            if (state.ItemPayloadRead == null || state.ItemPayloadRead.Length != cellCount)
+            if (state.ItemPayloadByCell == null || state.ItemPayloadByCell.Length != cellCount)
             {
-                state.ItemPayloadRead = new int[cellCount];
+                state.ItemPayloadByCell = new int[cellCount];
             }
 
-            if (state.ItemPayloadWrite == null || state.ItemPayloadWrite.Length != cellCount)
+            if (state.ItemTransportProgressByCell == null || state.ItemTransportProgressByCell.Length != cellCount)
             {
-                state.ItemPayloadWrite = new int[cellCount];
+                state.ItemTransportProgressByCell = new int[cellCount];
             }
 
             if (state.ItemIntentTargetBySource == null || state.ItemIntentTargetBySource.Length != cellCount)
@@ -232,60 +230,114 @@ namespace FactoryMustScale.Simulation.Item
                 state.ItemWinnerSourceByTarget = new int[cellCount];
             }
 
-            if (state.ItemWinningTargetBySource == null || state.ItemWinningTargetBySource.Length != cellCount)
+            if (state.ItemWinnerCountByTarget == null || state.ItemWinnerCountByTarget.Length != cellCount)
             {
-                state.ItemWinningTargetBySource = new int[cellCount];
+                state.ItemWinnerCountByTarget = new int[cellCount];
             }
 
-            if (state.ItemCanExecuteMoveBySource == null || state.ItemCanExecuteMoveBySource.Length != cellCount)
+            if (state.ItemMergerRoundRobinCursorByCell == null || state.ItemMergerRoundRobinCursorByCell.Length != cellCount)
             {
-                state.ItemCanExecuteMoveBySource = new byte[cellCount];
+                state.ItemMergerRoundRobinCursorByCell = new int[cellCount];
             }
 
-            if (state.ItemVisitStampBySource == null || state.ItemVisitStampBySource.Length != cellCount)
+            if (state.ItemMoveEventSourceByIndex == null || state.ItemMoveEventSourceByIndex.Length != cellCount)
             {
-                state.ItemVisitStampBySource = new int[cellCount];
+                state.ItemMoveEventSourceByIndex = new int[cellCount];
+            }
+
+            if (state.ItemMoveEventTargetByIndex == null || state.ItemMoveEventTargetByIndex.Length != cellCount)
+            {
+                state.ItemMoveEventTargetByIndex = new int[cellCount];
+            }
+
+            if (state.NextItemMoveEventSourceByIndex == null || state.NextItemMoveEventSourceByIndex.Length != cellCount)
+            {
+                state.NextItemMoveEventSourceByIndex = new int[cellCount];
+            }
+
+            if (state.NextItemMoveEventTargetByIndex == null || state.NextItemMoveEventTargetByIndex.Length != cellCount)
+            {
+                state.NextItemMoveEventTargetByIndex = new int[cellCount];
             }
         }
 
-        private static void PropagateExecutableMoves(ref FactoryCoreLoopState state, int cellCount)
+        private static void ResolveMergerRoundRobinWinners(ref FactoryCoreLoopState state, int width, int height, int cellCount)
         {
-            bool changed = true;
-            while (changed)
+            for (int targetIndex = 0; targetIndex < cellCount; targetIndex++)
             {
-                changed = false;
+                if (state.ItemWinnerCountByTarget[targetIndex] <= 1)
+                {
+                    continue;
+                }
 
+                int targetLocalY = targetIndex / width;
+                int targetLocalX = targetIndex - (targetLocalY * width);
+                int targetX = state.FactoryLayer.MinX + targetLocalX;
+                int targetY = state.FactoryLayer.MinY + targetLocalY;
+
+                if (!state.FactoryLayer.TryGet(targetX, targetY, out GridCellData targetCell)
+                    || targetCell.StateId != (int)GridStateId.Merger)
+                {
+                    continue;
+                }
+
+                int contenderCount = 0;
                 for (int sourceIndex = 0; sourceIndex < cellCount; sourceIndex++)
                 {
-                    if (state.ItemCanExecuteMoveBySource[sourceIndex] != 0)
+                    if (state.ItemIntentTargetBySource[sourceIndex] == targetIndex)
+                    {
+                        contenderCount++;
+                    }
+                }
+
+                if (contenderCount <= 1)
+                {
+                    continue;
+                }
+
+                int cursor = state.ItemMergerRoundRobinCursorByCell[targetIndex] % contenderCount;
+                if (cursor < 0)
+                {
+                    cursor = 0;
+                }
+
+                int selectedSource = -1;
+                int contenderOrdinal = 0;
+                for (int sourceIndex = 0; sourceIndex < cellCount; sourceIndex++)
+                {
+                    if (state.ItemIntentTargetBySource[sourceIndex] != targetIndex)
                     {
                         continue;
                     }
 
-                    int targetIndex = state.ItemWinningTargetBySource[sourceIndex];
-                    if (targetIndex < 0)
+                    if (contenderOrdinal == cursor)
                     {
-                        continue;
+                        selectedSource = sourceIndex;
+                        break;
                     }
 
-                    if (state.ItemPayloadRead[targetIndex] == 0)
-                    {
-                        state.ItemCanExecuteMoveBySource[sourceIndex] = 1;
-                        changed = true;
-                        continue;
-                    }
+                    contenderOrdinal++;
+                }
 
-                    if (state.ItemWinningTargetBySource[targetIndex] >= 0
-                        && state.ItemCanExecuteMoveBySource[targetIndex] != 0)
-                    {
-                        state.ItemCanExecuteMoveBySource[sourceIndex] = 1;
-                        changed = true;
-                    }
+                if (selectedSource >= 0)
+                {
+                    state.ItemWinnerSourceByTarget[targetIndex] = selectedSource;
+                    state.ItemMergerRoundRobinCursorByCell[targetIndex] = cursor + 1;
                 }
             }
         }
 
-        private static bool TryGetConveyorTarget(int x, int y, int variantId, out int targetX, out int targetY)
+        private static bool CanOutputItems(int stateId)
+        {
+            return stateId == (int)GridStateId.Conveyor || stateId == (int)GridStateId.Merger;
+        }
+
+        private static bool CanAcceptItems(int stateId)
+        {
+            return stateId == (int)GridStateId.Conveyor || stateId == (int)GridStateId.Merger;
+        }
+
+        private static bool TryGetOutputTarget(int x, int y, int variantId, out int targetX, out int targetY)
         {
             targetX = x;
             targetY = y;
@@ -307,6 +359,38 @@ namespace FactoryMustScale.Simulation.Item
                     return true;
                 default:
                     return false;
+            }
+        }
+
+        private static void ReadPayloadGrid(Layer layer, int payloadChannel, int width, int height, int[] destination)
+        {
+            for (int localY = 0; localY < height; localY++)
+            {
+                int y = layer.MinY + localY;
+                int rowStart = localY * width;
+
+                for (int localX = 0; localX < width; localX++)
+                {
+                    int x = layer.MinX + localX;
+                    int index = rowStart + localX;
+                    layer.TryGetPayload(x, y, payloadChannel, out destination[index]);
+                }
+            }
+        }
+
+        private static void WritePayloadGrid(Layer layer, int payloadChannel, int width, int height, int[] source)
+        {
+            for (int localY = 0; localY < height; localY++)
+            {
+                int y = layer.MinY + localY;
+                int rowStart = localY * width;
+
+                for (int localX = 0; localX < width; localX++)
+                {
+                    int x = layer.MinX + localX;
+                    int index = rowStart + localX;
+                    layer.TrySetPayload(x, y, payloadChannel, source[index]);
+                }
             }
         }
     }
