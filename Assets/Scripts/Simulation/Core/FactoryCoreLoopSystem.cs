@@ -74,7 +74,11 @@ namespace FactoryMustScale.Simulation.Core
     /// </summary>
     public struct FactoryCoreLoopSystem : ISimulationSystem<FactoryCoreLoopState>
     {
-        public void Tick(ref FactoryCoreLoopState state, int tickIndex)
+        public void TickCommit(ref FactoryCoreLoopState state, int tickIndex, ref EventBuffer prev)
+        {
+        }
+
+        public void TickCompute(ref FactoryCoreLoopState state, int tickIndex, ref EventBuffer next)
         {
             if (!state.Running)
             {
