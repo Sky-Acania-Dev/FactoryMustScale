@@ -95,7 +95,6 @@ namespace FactoryMustScale.Simulation.Core
         private static void InputAndEventHandling(ref FactoryCoreLoopState state, int tickIndex)
         {
             state.InputAndEventHandlingCount++;
-            ItemTransportPhaseSystem.IngestEvents(ref state);
             AppendTrace(ref state, FactoryTickStep.InputAndEventHandling, tickIndex);
         }
 
@@ -109,7 +108,6 @@ namespace FactoryMustScale.Simulation.Core
         private static void PublishEventsForNextTick(ref FactoryCoreLoopState state, int tickIndex)
         {
             state.PublishEventsForNextTickCount++;
-            ItemTransportPhaseSystem.PublishEvents(ref state);
             AppendTrace(ref state, FactoryTickStep.PublishEventsForNextTick, tickIndex);
         }
 

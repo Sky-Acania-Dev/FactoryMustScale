@@ -1,5 +1,8 @@
+using System;
+
 namespace FactoryMustScale.Simulation.Legacy
 {
+    [Obsolete]
     public enum MinimalFactoryGamePhase : byte
     {
         PendingInitialization = 0,
@@ -7,6 +10,7 @@ namespace FactoryMustScale.Simulation.Legacy
         Ended = 2,
     }
 
+    [Obsolete]
     public struct MinimalFactoryGameState
     {
         public const int DefaultFactoryPayloadItemChannel = 0;
@@ -46,6 +50,7 @@ namespace FactoryMustScale.Simulation.Legacy
         public int[] ConveyorVisitStampBySource;
     }
 
+    [Obsolete]
     /// <summary>
     /// Legacy minimal deterministic game-loop system for early integration testing.
     ///
@@ -290,6 +295,7 @@ namespace FactoryMustScale.Simulation.Legacy
                     continue;
                 }
 
+                // NOTE The two lines below are problematic since later cells overwrite previous payload to 0.
                 state.ConveyorPayloadWrite[sourceIndex] = 0;
                 state.ConveyorPayloadWrite[targetIndex] = state.ConveyorPayloadRead[sourceIndex];
             }
