@@ -5,7 +5,7 @@ namespace FactoryMustScale.Simulation.Item
     /// </summary>
     public enum ItemTransportAlgorithm : byte
     {
-        None = 0,
+        SimplePush = 0,
         ConveyorArbitratedPropagationV1 = 1,
         ConveyorGraphBasedExperimental = 2,
     }

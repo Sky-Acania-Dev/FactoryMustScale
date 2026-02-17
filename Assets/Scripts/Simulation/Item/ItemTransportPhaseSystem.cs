@@ -11,7 +11,7 @@ namespace FactoryMustScale.Simulation.Item
         {
             switch (state.ItemTransportAlgorithm)
             {
-                case ItemTransportAlgorithm.None:
+                case ItemTransportAlgorithm.SimplePush:
                     return;
                 case ItemTransportAlgorithm.ConveyorArbitratedPropagationV1:
                     ConveyorArbitratedPropagationSystem.IngestEvents(ref state);
@@ -27,7 +27,7 @@ namespace FactoryMustScale.Simulation.Item
         {
             switch (state.ItemTransportAlgorithm)
             {
-                case ItemTransportAlgorithm.None:
+                case ItemTransportAlgorithm.SimplePush:
                     return;
                 case ItemTransportAlgorithm.ConveyorArbitratedPropagationV1:
                     ConveyorArbitratedPropagationSystem.ProcessCells(ref state);
@@ -43,7 +43,7 @@ namespace FactoryMustScale.Simulation.Item
         {
             switch (state.ItemTransportAlgorithm)
             {
-                case ItemTransportAlgorithm.None:
+                case ItemTransportAlgorithm.SimplePush:
                     return;
                 case ItemTransportAlgorithm.ConveyorArbitratedPropagationV1:
                     ConveyorArbitratedPropagationSystem.PublishEvents(ref state);
