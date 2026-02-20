@@ -18,6 +18,9 @@ namespace FactoryMustScale.Runtime
         private ISimPhaseSystem[] _systems = System.Array.Empty<ISimPhaseSystem>();
         private SimLoop _simLoop;
         private float _accumulatorSeconds;
+        private int _unitTick;
+
+        public int UnitTick => _unitTick;
 
         public void ConfigureFactoryTransportState(in FactoryCoreLoopState state)
         {
@@ -25,6 +28,24 @@ namespace FactoryMustScale.Runtime
             {
                 new FactoryTransportLegacyAdapter(in state),
             };
+
+            // Rebuild to apply runtime reconfiguration.
+            if (_simLoop != null)
+            {
+                _simLoop = new SimLoop(_systems);
+            }
+        }
+
+        public void TickOnce()
+        {
+            if (_simLoop == null)
+            {
+                return;
+            }
+
+            _unitTick++;
+            SimClock clock = new SimClock(_unitTick);
+            _simLoop.Tick(in clock);
         }
 
         private void Awake()
@@ -44,6 +65,7 @@ namespace FactoryMustScale.Runtime
 
             _simLoop = new SimLoop(_systems);
             _accumulatorSeconds = 0.0f;
+            _unitTick = 0;
         }
 
         private void Update()
@@ -52,7 +74,7 @@ namespace FactoryMustScale.Runtime
 
             while (_accumulatorSeconds >= UnitTickDeltaSeconds)
             {
-                _simLoop.Tick();
+                TickOnce();
                 _accumulatorSeconds -= UnitTickDeltaSeconds;
             }
         }
