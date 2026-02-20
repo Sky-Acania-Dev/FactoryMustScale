@@ -24,7 +24,7 @@ Agents are helpers, not decision-makers.
 - Do not modify unrelated systems.
 - Prefer **clarity and correctness over cleverness**.
 - When in doubt, **ask or document assumptions** in the PR.
-
+- Please **don't** generate .meta files on your own for new files you created. Unity will generate the proper ones.
 ---
 
 ## Architecture Rules (NON-NEGOTIABLE)
