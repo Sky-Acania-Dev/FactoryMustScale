@@ -22,8 +22,12 @@ namespace FactoryMustScale.Simulation.Core
 
         public void Tick()
         {
-            _unitTick++;
-            SimClock clock = new SimClock(_unitTick);
+            Tick(new SimClock(_unitTick + 1));
+        }
+
+        public void Tick(in SimClock clock)
+        {
+            _unitTick = clock.UnitTick;
 
             for (int i = 0; i < _systems.Length; i++)
             {
