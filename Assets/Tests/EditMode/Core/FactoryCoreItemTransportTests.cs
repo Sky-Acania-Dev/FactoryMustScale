@@ -2,6 +2,7 @@ using FactoryMustScale.Simulation;
 using FactoryMustScale.Simulation.Core;
 using FactoryMustScale.Simulation.Item;
 using NUnit.Framework;
+using System.Text;
 
 namespace FactoryMustScale.Tests.EditMode.Core
 {
@@ -120,6 +121,15 @@ namespace FactoryMustScale.Tests.EditMode.Core
             Assert.That(firstHarness.State.SimEvents.HistoryCount, Is.GreaterThan(0));
             Assert.That(firstHarness.State.SimEvents.HistoryCount, Is.EqualTo(secondHarness.State.SimEvents.HistoryCount));
 
+            const int expectedHistoryCount = 7;
+            string unifiedEventDump = BuildUnifiedEventDump(firstHarness.State.SimEvents);
+            // Contract note: over four ticks, miner->conveyor->storage emits
+            // generated, transported(apply), generated, transported(apply), stored, transported(apply), generated.
+            Assert.That(
+                firstHarness.State.SimEvents.HistoryCount,
+                Is.EqualTo(expectedHistoryCount),
+                $"Unified event history mismatch.\nExpected: {expectedHistoryCount}\nActual: {firstHarness.State.SimEvents.HistoryCount}\nEvents:\n{unifiedEventDump}");
+
             for (int index = 0; index < firstHarness.State.SimEvents.HistoryCount; index++)
             {
                 Assert.That(firstHarness.State.SimEvents.TryGetHistoryEvent(index, out SimEvent firstEvent), Is.True);
@@ -186,6 +196,38 @@ namespace FactoryMustScale.Tests.EditMode.Core
             bool found = layer.TryGetPayload(x, y, channelIndex: 0, out int value);
             Assert.That(found, Is.True);
             Assert.That(value, Is.EqualTo(expected));
+        }
+
+        private static string BuildUnifiedEventDump(SimEventBuffer simEvents)
+        {
+            if (simEvents.HistoryCount == 0)
+            {
+                return "<no events>";
+            }
+
+            StringBuilder builder = new StringBuilder();
+            for (int index = 0; index < simEvents.HistoryCount; index++)
+            {
+                if (!simEvents.TryGetHistoryEvent(index, out SimEvent simEvent))
+                {
+                    continue;
+                }
+
+                if (builder.Length > 0)
+                {
+                    builder.Append('\n');
+                }
+
+                builder.Append(index)
+                    .Append(": id=").Append(simEvent.Id)
+                    .Append(", tick=").Append(simEvent.Tick)
+                    .Append(", src=").Append(simEvent.SourceKind).Append('#').Append(simEvent.SourceIndex)
+                    .Append(", dst=").Append(simEvent.TargetKind).Append('#').Append(simEvent.TargetIndex)
+                    .Append(", item=").Append(simEvent.ItemType)
+                    .Append(", count=").Append(simEvent.ItemCount);
+            }
+
+            return builder.ToString();
         }
     }
 }
