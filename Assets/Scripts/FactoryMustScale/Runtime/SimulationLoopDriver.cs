@@ -50,6 +50,17 @@ namespace FactoryMustScale.Runtime
 
         private void Awake()
         {
+            if (_simLoop == null) SetLoop();
+        }
+
+        internal void ResetUnitTick()
+        {
+            _accumulatorSeconds = 0.0f;
+            _unitTick = 0;
+        }
+
+        public void SetLoop()
+        {
             if (_systems.Length == 0 && _useFactoryTransportLegacyAdapter)
             {
                 FactoryCoreLoopState initialFactoryState = new FactoryCoreLoopState

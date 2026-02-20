@@ -18,7 +18,8 @@ namespace FactoryMustScale.Tests.EditMode.Core
             try
             {
                 var driver = gameObject.AddComponent<SimulationLoopDriver>();
-
+                // driver will not tick if it is not initialized.
+                driver.SetLoop();
                 driver.TickOnce();
                 driver.TickOnce();
                 driver.TickOnce();
