@@ -16,16 +16,22 @@ namespace FactoryMustScale.Simulation
         Splitter = 2,
         Merger = 3,
 
-        // Factory: extraction and processing
-        Miner = 10,
-        CrafterCore = 11,
-        CrafterInputPort = 12,
-        CrafterOutputPort = 13,
+        // Factory: net producers
+        Miner = 11,
 
-        // Factory: storage and power
-        Storage = 20,
-        PowerGenerator = 21,
-        PowerPole = 22,
-        PowerPylon = 23,
+
+        // Factory: crafters
+        CrafterCore = 21,
+        CrafterInputPort = 22,
+        CrafterOutputPort = 23,
+
+        // Factory: storage and item sink
+        Storage = 31,
+
+
+        // Power: generation and distribution
+        PowerGenerator = 101,
+        PowerPole = 102,
+        PowerPylon = 103,
     }
 }
