@@ -86,6 +86,12 @@ namespace FactoryMustScale.Simulation.Core
     /// </summary>
     public struct FactoryCoreLoopSystem : ISimulationSystem<FactoryCoreLoopState>
     {
+        /// <summary>
+        /// Phase 1 of the loop: read player input and commit events from the previous tick to update simulation state.
+        /// </summary>
+        /// <param name="state"></param>
+        /// <param name="tickIndex"></param>
+        /// <param name="prev"></param>
         public void TickCommit(ref FactoryCoreLoopState state, int tickIndex, ref EventBuffer prev)
         {
             if (!state.Running)
@@ -96,6 +102,12 @@ namespace FactoryMustScale.Simulation.Core
             InputAndEventHandling(ref state, tickIndex);
         }
 
+        /// <summary>
+        /// Phase 2 and 3 of the loop: update cell processes based on the committed state, then publish events for the next tick.
+        /// </summary>
+        /// <param name="state"></param>
+        /// <param name="tickIndex"></param>
+        /// <param name="next"></param>
         public void TickCompute(ref FactoryCoreLoopState state, int tickIndex, ref EventBuffer next)
         {
             if (!state.Running)
