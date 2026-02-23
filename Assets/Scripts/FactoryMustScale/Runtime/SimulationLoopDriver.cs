@@ -15,7 +15,7 @@ namespace FactoryMustScale.Runtime
         [SerializeField]
         private bool _useFactoryTransportLegacyAdapter;
 
-        private ISimPhaseSystem[] _systems = System.Array.Empty<ISimPhaseSystem>();
+        private ISimSystem[] _systems = System.Array.Empty<ISimSystem>();
         private SimLoop _simLoop;
         private float _accumulatorSeconds;
         private int _unitTick;
@@ -24,7 +24,7 @@ namespace FactoryMustScale.Runtime
 
         public void ConfigureFactoryTransportState(in FactoryCoreLoopState state)
         {
-            _systems = new ISimPhaseSystem[]
+            _systems = new ISimSystem[]
             {
                 new FactoryTransportLegacyAdapter(in state),
             };
@@ -68,7 +68,7 @@ namespace FactoryMustScale.Runtime
                     ItemTransportAlgorithm = ItemTransportAlgorithm.SimplePush,
                 };
 
-                _systems = new ISimPhaseSystem[]
+                _systems = new ISimSystem[]
                 {
                     new FactoryTransportLegacyAdapter(in initialFactoryState),
                 };

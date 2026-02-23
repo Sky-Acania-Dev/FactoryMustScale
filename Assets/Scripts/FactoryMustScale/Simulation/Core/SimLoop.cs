@@ -4,10 +4,10 @@ namespace FactoryMustScale.Simulation.Core
 {
     public sealed class SimLoop
     {
-        private readonly ISimPhaseSystem[] _systems;
+        private readonly ISimSystem[] _systems;
         private int _unitTick;
 
-        public SimLoop(ISimPhaseSystem[] systems)
+        public SimLoop(ISimSystem[] systems)
         {
             if (systems == null)
             {

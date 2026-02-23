@@ -38,7 +38,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
 
                 FieldInfo systemsField = typeof(SimulationLoopDriver).GetField("_systems", BindingFlags.NonPublic | BindingFlags.Instance);
                 Assert.That(systemsField, Is.Not.Null);
-                var systems = (ISimPhaseSystem[])systemsField.GetValue(driver);
+                var systems = (ISimSystem[])systemsField.GetValue(driver);
 
                 Assert.That(systems.Length, Is.EqualTo(1));
                 Assert.That(systems[0], Is.TypeOf<FactoryTransportLegacyAdapter>());

@@ -16,7 +16,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
             };
 
             var adapter = new FactoryTransportLegacyAdapter(in initialState);
-            var loop = new SimLoop(new ISimPhaseSystem[] { adapter });
+            var loop = new SimLoop(new ISimSystem[] { adapter });
 
             for (int i = 0; i < 8; i++)
             {

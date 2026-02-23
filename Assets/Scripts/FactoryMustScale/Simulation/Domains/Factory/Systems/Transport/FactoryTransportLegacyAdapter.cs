@@ -11,7 +11,7 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Transport
     /// - Compute => ItemTransportPhaseSystem.Run (compute/process transport intents and arbitration)
     /// - Commit => ItemTransportPhaseSystem.PublishEvents (schedule/publish next-tick transfers/events)
     /// </summary>
-    public sealed class FactoryTransportLegacyAdapter : ISimPhaseSystem
+    public sealed class FactoryTransportLegacyAdapter : ISimSystem
     {
         private FactoryCoreLoopState _state;
 

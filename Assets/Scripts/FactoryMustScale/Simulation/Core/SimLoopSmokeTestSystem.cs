@@ -3,7 +3,7 @@ namespace FactoryMustScale.Simulation.Core
     /// <summary>
     /// Tiny non-gameplay system for verifying 3-phase execution order.
     /// </summary>
-    public sealed class SimLoopSmokeTestSystem : ISimPhaseSystem
+    public sealed class SimLoopSmokeTestSystem : ISimSystem
     {
         public int LastPhaseMarker { get; private set; }
         public int LastObservedTick { get; private set; }
