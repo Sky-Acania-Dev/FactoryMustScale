@@ -12,7 +12,7 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Transport
     /// - Compute => ItemTransportPhaseSystem.Run + PublishEvents to produce deterministic intents/queued events.
     /// - Commit => ItemTransportPhaseSystem.IngestEvents applies queued transport events to authoritative state.
     /// </summary>
-    public sealed class FactoryTransportLegacyAdapter : ISimSystem
+    public sealed class FactoryTransportLegacyAdapter : ISimSystem, ISimHashSource
     {
         private FactoryCoreLoopState _state;
 
@@ -61,6 +61,40 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Transport
 
             ItemTransportPhaseSystem.IngestEvents(ref _state);
             CommitRunCount++;
+        }
+
+        public void AppendHash(ref SimHashBuilder builder)
+        {
+            if (_state.FactoryLayer != null)
+            {
+                _state.FactoryLayer.AppendDeterministicHash(ref builder);
+            }
+
+            builder.AppendInt(_state.FactoryTicksExecuted);
+            AppendArray(ref builder, _state.StorageItemCountByCell, _state.StorageItemCountByCell != null ? _state.StorageItemCountByCell.Length : 0);
+            AppendArray(ref builder, _state.ItemPayloadByCell, _state.ItemPayloadByCell != null ? _state.ItemPayloadByCell.Length : 0);
+            AppendArray(ref builder, _state.ItemTransportProgressByCell, _state.ItemTransportProgressByCell != null ? _state.ItemTransportProgressByCell.Length : 0);
+            AppendArray(ref builder, _state.ItemMergerRoundRobinCursorByCell, _state.ItemMergerRoundRobinCursorByCell != null ? _state.ItemMergerRoundRobinCursorByCell.Length : 0);
+        }
+
+        private static void AppendArray(ref SimHashBuilder builder, int[] values, int activeCount)
+        {
+            if (values == null || activeCount <= 0)
+            {
+                builder.AppendInt(0);
+                return;
+            }
+
+            if (activeCount > values.Length)
+            {
+                activeCount = values.Length;
+            }
+
+            builder.AppendInt(activeCount);
+            for (int i = 0; i < activeCount; i++)
+            {
+                builder.AppendInt(values[i]);
+            }
         }
     }
 }

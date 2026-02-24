@@ -10,7 +10,7 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Build
     /// - Compute: read-only for GridCellData.
     /// - Commit: reserved for non-structural deltas.
     /// </summary>
-    public sealed class FactoryBuildStructuralSystem : ISimSystem
+    public sealed class FactoryBuildStructuralSystem : ISimSystem, ISimHashSource
     {
         private FactoryBuildSystemState _state;
 
@@ -40,6 +40,51 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Build
 
         public void Commit(ref SimContext ctx)
         {
+        }
+
+        public void AppendHash(ref SimHashBuilder builder)
+        {
+            if (_state.TerrainLayer != null)
+            {
+                _state.TerrainLayer.AppendDeterministicHash(ref builder);
+            }
+
+            if (_state.FactoryLayer != null)
+            {
+                _state.FactoryLayer.AppendDeterministicHash(ref builder);
+            }
+
+            int beltCount = _state.ActiveBeltCellCount;
+            if (_state.ActiveBeltCellIndices == null || beltCount < 0)
+            {
+                beltCount = 0;
+            }
+            else if (beltCount > _state.ActiveBeltCellIndices.Length)
+            {
+                beltCount = _state.ActiveBeltCellIndices.Length;
+            }
+
+            builder.AppendInt(beltCount);
+            for (int i = 0; i < beltCount; i++)
+            {
+                builder.AppendInt(_state.ActiveBeltCellIndices[i]);
+            }
+
+            int processCount = _state.ActiveProcessCellCount;
+            if (_state.ActiveProcessCellIndices == null || processCount < 0)
+            {
+                processCount = 0;
+            }
+            else if (processCount > _state.ActiveProcessCellIndices.Length)
+            {
+                processCount = _state.ActiveProcessCellIndices.Length;
+            }
+
+            builder.AppendInt(processCount);
+            for (int i = 0; i < processCount; i++)
+            {
+                builder.AppendInt(_state.ActiveProcessCellIndices[i]);
+            }
         }
 
         private void IngestStructuralIntents()

@@ -11,15 +11,21 @@ namespace FactoryMustScale.Simulation.Core
     public struct SimContext
     {
         private readonly int[] _phaseTraceBuffer;
+        private readonly ISimHashSource[] _hashSources;
+        private readonly int _hashSourceCount;
 
-        public SimContext(in SimClock clock, int[] phaseTraceBuffer)
+        public SimContext(in SimClock clock, int[] phaseTraceBuffer, ISimHashSource[] hashSources, int hashSourceCount)
         {
             Clock = clock;
             _phaseTraceBuffer = phaseTraceBuffer;
+            _hashSources = hashSources;
+            _hashSourceCount = hashSourceCount;
             PhaseTraceCount = 0;
         }
 
         public SimClock Clock { get; }
+
+        public int HashSourceCount => _hashSourceCount;
 
         public int PhaseTraceCount { get; private set; }
 
@@ -44,6 +50,18 @@ namespace FactoryMustScale.Simulation.Core
 
             traceValue = _phaseTraceBuffer[index];
             return true;
+        }
+
+        public bool TryGetHashSource(int index, out ISimHashSource source)
+        {
+            if (_hashSources == null || index < 0 || index >= _hashSourceCount)
+            {
+                source = null;
+                return false;
+            }
+
+            source = _hashSources[index];
+            return source != null;
         }
     }
 

@@ -144,6 +144,30 @@ namespace FactoryMustScale.Simulation
             return true;
         }
 
+        public void AppendDeterministicHash(ref Core.SimHashBuilder builder)
+        {
+            builder.AppendInt(_minX);
+            builder.AppendInt(_minY);
+            builder.AppendInt(_width);
+            builder.AppendInt(_height);
+            builder.AppendInt(_payloadChannelCount);
+
+            for (int i = 0; i < _cells.Length; i++)
+            {
+                GridCellData cell = _cells[i];
+                builder.AppendInt(cell.StateId);
+                builder.AppendInt(cell.VariantId);
+                builder.AppendUInt(cell.Flags);
+                builder.AppendInt(cell.LastUpdatedTick);
+                builder.AppendInt(cell.ChangeCount);
+            }
+
+            for (int i = 0; i < _payloadValues.Length; i++)
+            {
+                builder.AppendInt(_payloadValues[i]);
+            }
+        }
+
         private bool TryGetPayloadIndex(int x, int y, int channelIndex, out int payloadIndex)
         {
             if (channelIndex < 0 || channelIndex >= _payloadChannelCount)
