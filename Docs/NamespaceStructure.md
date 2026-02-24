@@ -377,8 +377,11 @@ FactoryMustScale.Simulation.Domains.Factory.Systems
 
 ### Build
 
-- `Build/FactoryCoreLoopSystem.cs`
-  Implements ISimSystem with PreCompute(A/B): ingest structural intents, then early-commit build/remove/rotate so Compute observes updated cells in the same tick.
+- `FactoryCoreLoopSystem.cs`
+  Factory domain master orchestrator that sequences factory sub-systems per phase in deterministic order.
+
+- `Build/FactoryBuildStructuralSystem.cs`
+  Structural cell edit implementation (PreCompute A/B): ingest structural intents, then early-commit build/remove/rotate so Compute observes updated cells in the same tick.
 
 - `State/FactoryBuildSystemState.cs`
   Holds deterministic command/result buffers, scratch arrays, and active-cell sets for structural edits.

@@ -3,18 +3,18 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Build
     using FactoryMustScale.Simulation.Core;
 
     /// <summary>
-    /// Factory structural loop system under the canonical PreCompute/Compute/Commit contract.
+    /// Factory structural edit system under the canonical PreCompute/Compute/Commit contract.
     ///
     /// - PreCompute(A): ingest build/remove/rotate commands into structural intent buffer.
     /// - PreCompute(B): resolve deterministic conflicts and apply structural edits early.
     /// - Compute: read-only for GridCellData.
     /// - Commit: reserved for non-structural deltas.
     /// </summary>
-    public sealed class FactoryCoreLoopSystem : ISimSystem
+    public sealed class FactoryBuildStructuralSystem : ISimSystem
     {
         private FactoryBuildSystemState _state;
 
-        public FactoryCoreLoopSystem(in FactoryBuildSystemState initialState)
+        public FactoryBuildStructuralSystem(in FactoryBuildSystemState initialState)
         {
             _state = initialState;
         }
