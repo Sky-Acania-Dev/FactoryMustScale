@@ -8,7 +8,7 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Transport
     /// Thin adapter that executes the existing item transport phase system inside the SimLoop 3-phase contract.
     ///
     /// Legacy mapping under canonical 3-phase loop:
-    /// - ExternalIngest => SimEvent buffer ingest (BeginTick + PromoteQueuedEvents), no authoritative writes.
+    /// - PreCompute => SimEvent buffer ingest (BeginTick + PromoteQueuedEvents), no authoritative writes.
     /// - Compute => ItemTransportPhaseSystem.Run + PublishEvents to produce deterministic intents/queued events.
     /// - Commit => ItemTransportPhaseSystem.IngestEvents applies queued transport events to authoritative state.
     /// </summary>
@@ -21,13 +21,13 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Transport
             _state = initialState;
         }
 
-        public int ExternalIngestRunCount { get; private set; }
+        public int PreComputeRunCount { get; private set; }
 
         public int ComputeRunCount { get; private set; }
 
         public int CommitRunCount { get; private set; }
 
-        public void ExternalIngest(ref SimContext ctx)
+        public void PreCompute(ref SimContext ctx)
         {
             if (!ctx.Clock.IsFactoryTick)
             {
@@ -37,7 +37,7 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Transport
             _state.SimEvents.EnsureCapacity(_state.SimEventCapacity > 0 ? _state.SimEventCapacity : 128);
             _state.SimEvents.BeginTick();
             _state.SimEvents.PromoteQueuedEvents();
-            ExternalIngestRunCount++;
+            PreComputeRunCount++;
         }
 
         public void Compute(ref SimContext ctx)

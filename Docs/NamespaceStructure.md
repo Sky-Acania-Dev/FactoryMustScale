@@ -4,11 +4,14 @@ This document defines the canonical folder structure, namespaces, and responsibi
 
 The simulation follows a strict **3-phase loop**:
 
-1. **ExternalIngest** — read external commands/intents. No authoritative state mutation (except explicitly allowed fast writes).
+1. **PreCompute** — two deterministic substeps:
+   - A) ingest external commands/intents into transient buffers (no authoritative mutation)
+   - B) structural early commit for cell modifications only (build/remove/rotate)
 2. **Compute** — read-only logic. Produce intents/deltas.
 3. **Commit** — apply deltas to authoritative state.
 
-Only **Commit** may mutate authoritative simulation state.
+Only structural cell edits may mutate authoritative state during **PreCompute(B)**.
+All non-structural mutations must remain in **Commit**.
 
 ---
 
@@ -50,7 +53,7 @@ FactoryMustScale.Simulation.Core
   Maintains authoritative tick counters (UnitTick = 32 Hz; FactoryTick = every 4; EnvTick = every 32).
 
 - `SimLoop.cs`  
-  Executes ExternalIngest → Compute → Commit in deterministic order.
+  Executes PreCompute → Compute → Commit in deterministic order.
 
 - `ISimSystem.cs`  
   Defines the 3-phase system interface contract.
@@ -251,7 +254,7 @@ FactoryMustScale.Simulation.Domains.Terrain.Systems
 
 ### Fast
 
-- `TerrainExternalIngestSystem.cs`  
+- `TerrainPreComputeSystem.cs`
   Applies fast external terrain writes (e.g., item drops).
 
 ### Slow
