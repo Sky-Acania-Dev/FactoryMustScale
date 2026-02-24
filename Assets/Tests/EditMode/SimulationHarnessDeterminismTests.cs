@@ -1,4 +1,3 @@
-using FactoryMustScale.Simulation;
 using FactoryMustScale.Simulation.Legacy;
 using NUnit.Framework;
 using System;

@@ -1,6 +1,6 @@
 namespace FactoryMustScale.Simulation.Item
 {
-    using FactoryMustScale.Simulation.Core;
+    using FactoryMustScale.Simulation.Legacy;
 
     /// <summary>
     /// Placeholder for a future graph-based conveyor item simulation (graph-based).

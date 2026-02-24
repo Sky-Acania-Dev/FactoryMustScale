@@ -8,13 +8,13 @@ namespace FactoryMustScale.Simulation.Core
         public int LastPhaseMarker { get; private set; }
         public int LastObservedTick { get; private set; }
 
-        public void ExternalIngest(in SimClock clock)
+        public void ExternalIngest(ref SimContext ctx)
         {
-            LastObservedTick = clock.UnitTick;
+            LastObservedTick = ctx.Clock.UnitTick;
             LastPhaseMarker = 1;
         }
 
-        public void Compute(in SimClock clock)
+        public void Compute(ref SimContext ctx)
         {
             if (LastPhaseMarker == 1)
             {
@@ -22,7 +22,7 @@ namespace FactoryMustScale.Simulation.Core
             }
         }
 
-        public void Commit(in SimClock clock)
+        public void Commit(ref SimContext ctx)
         {
             if (LastPhaseMarker == 2)
             {

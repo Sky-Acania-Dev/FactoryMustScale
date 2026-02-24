@@ -1,6 +1,6 @@
 namespace FactoryMustScale.Simulation.Item
 {
-    using FactoryMustScale.Simulation.Core;
+    using FactoryMustScale.Simulation.Legacy;
 
     public static class ConveyorArbitratedPropagationSystem
     {
