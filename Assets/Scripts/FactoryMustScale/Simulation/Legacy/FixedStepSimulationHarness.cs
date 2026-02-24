@@ -1,6 +1,6 @@
 using System;
 
-namespace FactoryMustScale.Simulation
+namespace FactoryMustScale.Simulation.Legacy
 {
     /// <summary>
     /// Executes a simulation system on a deterministic fixed tick sequence.

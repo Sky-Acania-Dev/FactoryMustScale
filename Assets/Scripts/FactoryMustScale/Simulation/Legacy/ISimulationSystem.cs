@@ -1,4 +1,4 @@
-namespace FactoryMustScale.Simulation
+namespace FactoryMustScale.Simulation.Legacy
 {
     /// <summary>
     /// Minimal simulation contract for fixed-step systems.

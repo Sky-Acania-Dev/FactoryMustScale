@@ -1,4 +1,5 @@
 using FactoryMustScale.Simulation.Core;
+using FactoryMustScale.Simulation.Legacy;
 using FactoryMustScale.Simulation.Domains.Factory.Systems.Transport;
 using FactoryMustScale.Simulation.Item;
 using UnityEngine;

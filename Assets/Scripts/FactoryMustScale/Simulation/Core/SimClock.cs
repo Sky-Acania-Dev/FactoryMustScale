@@ -2,10 +2,15 @@ namespace FactoryMustScale.Simulation.Core
 {
     /// <summary>
     /// Authoritative simulation clock based on unit ticks.
-    /// Unit tick base rate is 32 Hz.
+    /// UnitTick advances at 32 Hz.
+    /// FactoryTick occurs every 4 UnitTicks.
+    /// EnvTick occurs every 32 UnitTicks.
     /// </summary>
     public readonly struct SimClock
     {
+        public const int UnitTicksPerFactoryTick = 4;
+        public const int UnitTicksPerEnvTick = 32;
+
         public SimClock(int unitTick)
         {
             UnitTick = unitTick;
@@ -13,14 +18,22 @@ namespace FactoryMustScale.Simulation.Core
 
         public int UnitTick { get; }
 
+        public int FactoryTick => UnitTick / UnitTicksPerFactoryTick;
+
+        public int EnvTick => UnitTick / UnitTicksPerEnvTick;
+
+        public bool IsFactoryTick => IsFactoryTick(UnitTick);
+
+        public bool IsEnvTick => IsEnvTick(UnitTick);
+
         public static bool IsFactoryTick(int unitTick)
         {
-            return (unitTick % 4) == 0;
+            return (unitTick % UnitTicksPerFactoryTick) == 0;
         }
 
         public static bool IsEnvTick(int unitTick)
         {
-            return (unitTick % 32) == 0;
+            return (unitTick % UnitTicksPerEnvTick) == 0;
         }
     }
 }

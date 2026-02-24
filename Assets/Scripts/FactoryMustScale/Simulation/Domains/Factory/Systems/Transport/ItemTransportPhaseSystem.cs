@@ -1,6 +1,6 @@
 namespace FactoryMustScale.Simulation.Item
 {
-    using FactoryMustScale.Simulation.Core;
+    using FactoryMustScale.Simulation.Legacy;
 
     /// <summary>
     /// Item-domain simulation entry points mapped to core loop phases.

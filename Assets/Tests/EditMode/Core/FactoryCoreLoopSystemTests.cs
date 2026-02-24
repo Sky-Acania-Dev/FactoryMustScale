@@ -1,5 +1,6 @@
-using FactoryMustScale.Simulation;
+using FactoryMustScale.Simulation.Legacy;
 using FactoryMustScale.Simulation.Core;
+using FactoryMustScale.Simulation.Legacy;
 using NUnit.Framework;
 
 namespace FactoryMustScale.Tests.EditMode.Core

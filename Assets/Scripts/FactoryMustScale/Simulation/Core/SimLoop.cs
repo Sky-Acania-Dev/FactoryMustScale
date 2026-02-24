@@ -2,23 +2,49 @@ using System;
 
 namespace FactoryMustScale.Simulation.Core
 {
+    /// <summary>
+    /// Runs the canonical 3-phase simulation loop in deterministic system index order.
+    /// </summary>
     public sealed class SimLoop
     {
         private readonly ISimSystem[] _systems;
+        private readonly int[] _phaseTraceBuffer;
         private int _unitTick;
+        private int _phaseTraceCount;
 
-        public SimLoop(ISimSystem[] systems)
+        public SimLoop(ISimSystem[] systems, int traceCapacity = 1024)
         {
             if (systems == null)
             {
                 throw new ArgumentNullException(nameof(systems));
             }
 
+            if (traceCapacity < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(traceCapacity));
+            }
+
             _systems = systems;
+            _phaseTraceBuffer = traceCapacity == 0 ? Array.Empty<int>() : new int[traceCapacity];
             _unitTick = 0;
+            _phaseTraceCount = 0;
         }
 
         public int UnitTick => _unitTick;
+
+        public int PhaseTraceCount => _phaseTraceCount;
+
+        public bool TryGetPhaseTraceAt(int index, out int traceValue)
+        {
+            if (index < 0 || index >= _phaseTraceCount)
+            {
+                traceValue = 0;
+                return false;
+            }
+
+            traceValue = _phaseTraceBuffer[index];
+            return true;
+        }
 
         public void Tick()
         {
@@ -29,19 +55,33 @@ namespace FactoryMustScale.Simulation.Core
         {
             _unitTick = clock.UnitTick;
 
-            for (int i = 0; i < _systems.Length; i++)
-            {
-                _systems[i].ExternalIngest(in clock);
-            }
+            SimContext ctx = new SimContext(in clock, _phaseTraceBuffer);
 
-            for (int i = 0; i < _systems.Length; i++)
-            {
-                _systems[i].Compute(in clock);
-            }
+            ExecutePhase(ref ctx, SimPhase.ExternalIngest);
+            ExecutePhase(ref ctx, SimPhase.Compute);
+            ExecutePhase(ref ctx, SimPhase.Commit);
 
+            _phaseTraceCount = ctx.PhaseTraceCount;
+        }
+
+        private void ExecutePhase(ref SimContext ctx, SimPhase phase)
+        {
             for (int i = 0; i < _systems.Length; i++)
             {
-                _systems[i].Commit(in clock);
+                switch (phase)
+                {
+                    case SimPhase.ExternalIngest:
+                        _systems[i].ExternalIngest(ref ctx);
+                        break;
+                    case SimPhase.Compute:
+                        _systems[i].Compute(ref ctx);
+                        break;
+                    default:
+                        _systems[i].Commit(ref ctx);
+                        break;
+                }
+
+                ctx.AppendPhaseTrace(phase);
             }
         }
     }

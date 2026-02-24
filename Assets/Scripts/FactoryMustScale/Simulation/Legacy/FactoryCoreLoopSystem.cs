@@ -1,4 +1,4 @@
-namespace FactoryMustScale.Simulation.Core
+namespace FactoryMustScale.Simulation.Legacy
 {
     using FactoryMustScale.Simulation.Item;
 
