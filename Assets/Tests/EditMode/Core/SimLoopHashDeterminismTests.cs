@@ -83,10 +83,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
             InitializeGround(terrain, 2, 2);
 
             FactoryBuildSystemState state = CreateState(terrain, factory);
-            var system = new FactoryCoreLoopSystem(in state);
-            var loop = new SimLoop(new ISimSystem[] { system });
-
-            EnqueueCommonCommands(state.CommandQueue);
+            EnqueueCommonCommands(ref state.CommandQueue);
             if (withStructuralDifference)
             {
                 state.CommandQueue.TryEnqueue(new FactoryCommand
@@ -100,6 +97,9 @@ namespace FactoryMustScale.Tests.EditMode.Core
                     FootprintHeight = 1,
                 });
             }
+
+            var system = new FactoryCoreLoopSystem(in state);
+            var loop = new SimLoop(new ISimSystem[] { system });
 
             for (int i = 0; i < tickCount; i++)
             {
@@ -117,7 +117,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
             return hashes;
         }
 
-        private static void EnqueueCommonCommands(FactoryCommandQueue queue)
+        private static void EnqueueCommonCommands(ref FactoryCommandQueue queue)
         {
             queue.TryEnqueue(new FactoryCommand
             {
