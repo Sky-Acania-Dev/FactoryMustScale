@@ -11,6 +11,8 @@ namespace FactoryMustScale.Runtime.Visualization
     /// </summary>
     public sealed class DebugGridMinimapView : MonoBehaviour
     {
+        private const float SimTickIntervalSeconds = 0.25f;
+
         [Header("Palettes")]
         [SerializeField]
         private GridStateColorPaletteDefinition _statePaletteAsset;
@@ -31,13 +33,11 @@ namespace FactoryMustScale.Runtime.Visualization
         [SerializeField]
         private Renderer _targetQuadRenderer;
 
-        [SerializeField, Min(1)]
-        private int _simTicksPerFrame = 1;
-
         private DebugGridMinimapRenderer _renderer;
         private DebugGridMinimapTestScenario _scenario;
         private GridStateColorPaletteData _statePalette;
         private ItemColorPaletteData _itemPalette;
+        private float _simTickAccumulatorSeconds;
 
         private void Start()
         {
@@ -63,6 +63,22 @@ namespace FactoryMustScale.Runtime.Visualization
             _renderer = new DebugGridMinimapRenderer();
             _renderer.Initialize(_scenario.Width, _scenario.Height, _cellPixelSize);
             BindTextureTargets(_renderer.Texture);
+            RenderCurrentState();
+        }
+
+        private void FixedUpdate()
+        {
+            if (_renderer == null || _scenario == null)
+            {
+                return;
+            }
+
+            _simTickAccumulatorSeconds += Time.fixedDeltaTime;
+            while (_simTickAccumulatorSeconds >= SimTickIntervalSeconds)
+            {
+                _scenario.Tick(1);
+                _simTickAccumulatorSeconds -= SimTickIntervalSeconds;
+            }
         }
 
         private void Update()
@@ -72,7 +88,11 @@ namespace FactoryMustScale.Runtime.Visualization
                 return;
             }
 
-            _scenario.Tick(_simTicksPerFrame);
+            RenderCurrentState();
+        }
+
+        private void RenderCurrentState()
+        {
             _renderer.Render(
                 _scenario.Cells,
                 _scenario.Width,
