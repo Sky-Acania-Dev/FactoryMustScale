@@ -41,6 +41,13 @@ namespace FactoryMustScale.Simulation
         private const int VariantCodeShift = 3;
         private const int VariantCodeMask = 0b111_1111;
 
+        private const int ShapeBits = 2;
+        private const int ShapeMask = (1 << ShapeBits) - 1; // 0b11
+
+        private const int Variant5Bits = 5;
+        private const int Variant5Shift = ShapeBits; // 2
+        private const int Variant5Mask = (1 << Variant5Bits) - 1; // 0b1_1111
+
         private const int BuildStageShift = 10;
         private const int BuildStageMask = 0b1111;
 
@@ -61,7 +68,7 @@ namespace FactoryMustScale.Simulation
         // Authoritative structural state for this cell (empty, conveyor, crafter-part, etc...).
         public int StateId;
 
-        // Optional orientation/variant channel for the same StateId.
+        // Optional orientation/shape/variant channel for the same StateId.
         public int VariantId;
 
         // Bit flags for compact booleans (powered, blocked, reserved, io marker, ...).
@@ -106,12 +113,51 @@ namespace FactoryMustScale.Simulation
         }
 
         /// <summary>
+        /// VariantCode (7 bits) is subdivided into:
+        /// - ShapeCode: low 2 bits (0..3)
+        /// - Variant5: high 5 bits (0..31)
+        /// Encoding: VariantCode = (Variant5 << 2) | ShapeCode
+        /// </summary>
+        public static byte GetShapeCode(int variantId)
+        {
+            return (byte)(GetVariantCode(variantId) & ShapeMask);
+        }
+
+        public static int SetShapeCode(int variantId, byte shapeCode)
+        {
+            byte code = GetVariantCode(variantId);
+            code = (byte)((code & ~ShapeMask) | (shapeCode & ShapeMask));
+            return SetVariantCode(variantId, code);
+        }
+
+        public static byte GetVariant5(int variantId)
+        {
+            return (byte)((GetVariantCode(variantId) >> Variant5Shift) & Variant5Mask);
+        }
+
+        public static int SetVariant5(int variantId, byte variant5)
+        {
+            byte code = GetVariantCode(variantId);
+            code = (byte)((code & ShapeMask) | ((variant5 & Variant5Mask) << Variant5Shift));
+            return SetVariantCode(variantId, code);
+        }
+
+        /// <summary>
+        /// Convenience helper to set both Variant5 and ShapeCode at once.
+        /// </summary>
+        public static int SetVariant5AndShape(int variantId, byte variant5, byte shapeCode)
+        {
+            byte code = (byte)(((variant5 & Variant5Mask) << Variant5Shift) | (shapeCode & ShapeMask));
+            return SetVariantCode(variantId, code);
+        }
+
+        /// <summary>
         /// Reads the process profile id packed in VariantCode bits.
         /// This value maps a placed factory cell to one baked process definition.
         /// </summary>
         public static byte GetProcessProfileId(int variantId)
         {
-            return GetVariantCode(variantId);
+            return GetVariant5(variantId);
         }
 
         public static int SetVariantCode(int variantId, byte variantCode)
@@ -122,12 +168,12 @@ namespace FactoryMustScale.Simulation
         }
 
         /// <summary>
-        /// Packs the process profile id into VariantCode bits.
-        /// Dynamic process progress should be stored in layer payload channels.
+        /// Packs the 5-bit process profile id (0..31) into VariantCode bits.
+        /// ShapeCode is preserved.
         /// </summary>
         public static int SetProcessProfileId(int variantId, byte processProfileId)
         {
-            return SetVariantCode(variantId, processProfileId);
+            return SetVariant5(variantId, processProfileId);
         }
 
         public static int GetConstructionDestructionStage(int variantId)
