@@ -14,7 +14,7 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems
     /// Additional domain systems (for example transport/crafting/power) should be added here in
     /// deterministic fixed order as they are refactored into non-legacy ISimSystem components.
     /// </summary>
-    public sealed class FactoryCoreLoopSystem : ISimSystem
+    public sealed class FactoryCoreLoopSystem : ISimSystem, ISimHashSource
     {
         private FactoryBuildStructuralSystem _buildStructuralSystem;
 
@@ -38,6 +38,11 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems
         public void Commit(ref SimContext ctx)
         {
             _buildStructuralSystem.Commit(ref ctx);
+        }
+
+        public void AppendHash(ref SimHashBuilder builder)
+        {
+            _buildStructuralSystem.AppendHash(ref builder);
         }
     }
 }
