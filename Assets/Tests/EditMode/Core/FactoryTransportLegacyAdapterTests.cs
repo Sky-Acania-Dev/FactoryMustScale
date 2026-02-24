@@ -24,7 +24,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
                 loop.Tick();
             }
 
-            Assert.That(adapter.ExternalIngestRunCount, Is.EqualTo(2));
+            Assert.That(adapter.PreComputeRunCount, Is.EqualTo(2));
             Assert.That(adapter.ComputeRunCount, Is.EqualTo(2));
             Assert.That(adapter.CommitRunCount, Is.EqualTo(2));
         }

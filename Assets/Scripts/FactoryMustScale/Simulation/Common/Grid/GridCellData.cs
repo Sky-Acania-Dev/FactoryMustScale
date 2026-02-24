@@ -173,6 +173,12 @@ namespace FactoryMustScale.Simulation
         /// </summary>
         public static int SetProcessProfileId(int variantId, byte processProfileId)
         {
+#if UNITY_EDITOR
+            if (processProfileId > Variant5Mask)
+            {
+                UnityEngine.Debug.LogError($"ProcessProfileId {processProfileId} exceeds 5-bit Variant/Profile range (0..{Variant5Mask}). Value will be clamped.");
+            }
+#endif
             return SetVariant5(variantId, processProfileId);
         }
 

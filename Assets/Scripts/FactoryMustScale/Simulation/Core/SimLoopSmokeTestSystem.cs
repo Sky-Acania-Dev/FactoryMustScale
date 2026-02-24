@@ -8,7 +8,7 @@ namespace FactoryMustScale.Simulation.Core
         public int LastPhaseMarker { get; private set; }
         public int LastObservedTick { get; private set; }
 
-        public void ExternalIngest(ref SimContext ctx)
+        public void PreCompute(ref SimContext ctx)
         {
             LastObservedTick = ctx.Clock.UnitTick;
             LastPhaseMarker = 1;

@@ -4,13 +4,15 @@ namespace FactoryMustScale.Simulation.Core
     /// Canonical deterministic simulation system contract.
     ///
     /// Phase contract:
-    /// 1) ExternalIngest: read external commands/intents into transient buffers.
+    /// 1) PreCompute:
+    ///    A) ingest external commands/intents into transient buffers,
+    ///    B) apply structural cell edits early (build/remove/rotate) when required.
     /// 2) Compute: read-only computation that emits intents/deltas/events.
-    /// 3) Commit: the only phase allowed to mutate authoritative state.
+    /// 3) Commit: apply non-structural authoritative mutations only.
     /// </summary>
     public interface ISimSystem
     {
-        void ExternalIngest(ref SimContext ctx);
+        void PreCompute(ref SimContext ctx);
 
         void Compute(ref SimContext ctx);
 

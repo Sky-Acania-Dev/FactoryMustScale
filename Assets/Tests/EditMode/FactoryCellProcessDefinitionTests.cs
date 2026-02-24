@@ -139,13 +139,13 @@ namespace FactoryMustScale.Tests.EditMode
         public void GridCellData_ProcessProfileId_RoundTripsInVariantCodeBits()
         {
             int variantId = 0;
-            variantId = GridCellData.SetProcessProfileId(variantId, processProfileId: 55);
+            variantId = GridCellData.SetProcessProfileId(variantId, processProfileId: 31);
 
-            Assert.That(GridCellData.GetProcessProfileId(variantId), Is.EqualTo(55));
+            Assert.That(GridCellData.GetProcessProfileId(variantId), Is.EqualTo(31));
 
             variantId = GridCellData.SetOrientation(variantId, CellOrientation.Left);
             Assert.That(GridCellData.GetOrientationEnum(variantId), Is.EqualTo(CellOrientation.Left));
-            Assert.That(GridCellData.GetProcessProfileId(variantId), Is.EqualTo(55));
+            Assert.That(GridCellData.GetProcessProfileId(variantId), Is.EqualTo(31));
         }
 
         [Test]

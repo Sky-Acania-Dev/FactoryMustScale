@@ -85,6 +85,28 @@ namespace FactoryMustScale.Tests.EditMode
         }
 
         [Test]
+        public void ShapeAndVariant5_RoundTripAcrossFullRanges_WithoutTouchingOrientationOrStage()
+        {
+            for (int shape = 0; shape <= 3; shape++)
+            {
+                for (int profile = 0; profile <= 31; profile++)
+                {
+                    int variantId = 0;
+                    variantId = GridCellData.SetOrientation(variantId, CellOrientation.DownRight);
+                    variantId = GridCellData.SetConstructionDestructionStage(variantId, GridCellData.StageConstructionEnd);
+
+                    variantId = GridCellData.SetShapeCode(variantId, (byte)shape);
+                    variantId = GridCellData.SetVariant5(variantId, (byte)profile);
+
+                    Assert.That(GridCellData.GetShapeCode(variantId), Is.EqualTo((byte)shape));
+                    Assert.That(GridCellData.GetVariant5(variantId), Is.EqualTo((byte)profile));
+                    Assert.That(GridCellData.GetOrientationEnum(variantId), Is.EqualTo(CellOrientation.DownRight));
+                    Assert.That(GridCellData.GetConstructionDestructionStage(variantId), Is.EqualTo(GridCellData.StageConstructionEnd));
+                }
+            }
+        }
+
+        [Test]
         public void FlagHelpers_ReturnExpectedBooleanValues()
         {
             uint flags = 0u;

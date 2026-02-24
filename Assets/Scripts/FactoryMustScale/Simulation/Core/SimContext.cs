@@ -4,8 +4,9 @@ namespace FactoryMustScale.Simulation.Core
     /// Shared per-tick simulation context.
     ///
     /// Contract:
-    /// - ExternalIngest and Compute can read authoritative state and write transient buffers only.
-    /// - Commit is the only phase that may apply authoritative state mutations.
+    /// - PreCompute(A) and Compute can read authoritative state and write transient buffers only.
+    /// - PreCompute(B) may apply structural cell edits only (build/remove/rotate).
+    /// - Commit applies non-structural authoritative mutations.
     /// </summary>
     public struct SimContext
     {
@@ -48,7 +49,7 @@ namespace FactoryMustScale.Simulation.Core
 
     public enum SimPhase : byte
     {
-        ExternalIngest = 0,
+        PreCompute = 0,
         Compute = 1,
         Commit = 2,
     }

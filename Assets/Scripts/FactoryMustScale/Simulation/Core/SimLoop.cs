@@ -57,7 +57,7 @@ namespace FactoryMustScale.Simulation.Core
 
             SimContext ctx = new SimContext(in clock, _phaseTraceBuffer);
 
-            ExecutePhase(ref ctx, SimPhase.ExternalIngest);
+            ExecutePhase(ref ctx, SimPhase.PreCompute);
             ExecutePhase(ref ctx, SimPhase.Compute);
             ExecutePhase(ref ctx, SimPhase.Commit);
 
@@ -70,8 +70,8 @@ namespace FactoryMustScale.Simulation.Core
             {
                 switch (phase)
                 {
-                    case SimPhase.ExternalIngest:
-                        _systems[i].ExternalIngest(ref ctx);
+                    case SimPhase.PreCompute:
+                        _systems[i].PreCompute(ref ctx);
                         break;
                     case SimPhase.Compute:
                         _systems[i].Compute(ref ctx);

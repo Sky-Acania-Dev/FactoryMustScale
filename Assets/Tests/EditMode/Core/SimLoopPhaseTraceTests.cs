@@ -21,7 +21,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
             Assert.That(loop.TryGetPhaseTraceAt(1, out int trace1), Is.True);
             Assert.That(loop.TryGetPhaseTraceAt(2, out int trace2), Is.True);
 
-            Assert.That(trace0, Is.EqualTo((1 * 10) + (int)SimPhase.ExternalIngest));
+            Assert.That(trace0, Is.EqualTo((1 * 10) + (int)SimPhase.PreCompute));
             Assert.That(trace1, Is.EqualTo((1 * 10) + (int)SimPhase.Compute));
             Assert.That(trace2, Is.EqualTo((1 * 10) + (int)SimPhase.Commit));
         }

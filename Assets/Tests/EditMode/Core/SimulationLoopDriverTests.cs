@@ -45,7 +45,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
                 Assert.That(systems[0], Is.TypeOf<FactoryTransportLegacyAdapter>());
 
                 var adapter = (FactoryTransportLegacyAdapter)systems[0];
-                Assert.That(adapter.ExternalIngestRunCount, Is.EqualTo(1));
+                Assert.That(adapter.PreComputeRunCount, Is.EqualTo(1));
                 Assert.That(adapter.ComputeRunCount, Is.EqualTo(1));
                 Assert.That(adapter.CommitRunCount, Is.EqualTo(1));
             }
