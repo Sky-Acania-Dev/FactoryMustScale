@@ -22,16 +22,16 @@ namespace FactoryMustScale.Simulation.Core
 
         public int EnvTick => UnitTick / UnitTicksPerEnvTick;
 
-        public bool IsFactoryTick => IsFactoryTick(UnitTick);
+        public bool IsFactoryTick => IsTickFactoryTick(UnitTick);
 
-        public bool IsEnvTick => IsEnvTick(UnitTick);
+        public bool IsEnvTick => IsTickEnvTick(UnitTick);
 
-        public static bool IsFactoryTick(int unitTick)
+        public static bool IsTickFactoryTick(int unitTick)
         {
             return (unitTick % UnitTicksPerFactoryTick) == 0;
         }
 
-        public static bool IsEnvTick(int unitTick)
+        public static bool IsTickEnvTick(int unitTick)
         {
             return (unitTick % UnitTicksPerEnvTick) == 0;
         }
