@@ -1,7 +1,8 @@
+using FactoryMustScale.Simulation;
 using FactoryMustScale.Simulation.Core;
-using FactoryMustScale.Simulation.Legacy;
 using FactoryMustScale.Simulation.Domains.Factory.Systems.Transport;
 using FactoryMustScale.Simulation.Item;
+using FactoryMustScale.Simulation.Legacy;
 using UnityEngine;
 
 namespace FactoryMustScale.Runtime
@@ -20,14 +21,24 @@ namespace FactoryMustScale.Runtime
         private SimLoop _simLoop;
         private float _accumulatorSeconds;
         private int _unitTick;
+        private FactoryTransportLegacyAdapter _factoryTransportAdapter;
 
         public int UnitTick => _unitTick;
 
+        public int MinimapGridWidth => _factoryTransportAdapter != null ? _factoryTransportAdapter.Width : 0;
+
+        public int MinimapGridHeight => _factoryTransportAdapter != null ? _factoryTransportAdapter.Height : 0;
+
+        public GridCellData[] MinimapCells => _factoryTransportAdapter != null ? _factoryTransportAdapter.Cells : null;
+
+        public int[] MinimapItemIdByCell => _factoryTransportAdapter != null ? _factoryTransportAdapter.ItemIdByCell : null;
+
         public void ConfigureFactoryTransportState(in FactoryCoreLoopState state)
         {
+            _factoryTransportAdapter = new FactoryTransportLegacyAdapter(in state);
             _systems = new ISimSystem[]
             {
-                new FactoryTransportLegacyAdapter(in state),
+                _factoryTransportAdapter,
             };
 
             // Rebuild to apply runtime reconfiguration.
@@ -51,7 +62,10 @@ namespace FactoryMustScale.Runtime
 
         private void Awake()
         {
-            if (_simLoop == null) SetLoop();
+            if (_simLoop == null)
+            {
+                SetLoop();
+            }
         }
 
         internal void ResetUnitTick()
@@ -69,9 +83,10 @@ namespace FactoryMustScale.Runtime
                     ItemTransportAlgorithm = ItemTransportAlgorithm.SimplePush,
                 };
 
+                _factoryTransportAdapter = new FactoryTransportLegacyAdapter(in initialFactoryState);
                 _systems = new ISimSystem[]
                 {
-                    new FactoryTransportLegacyAdapter(in initialFactoryState),
+                    _factoryTransportAdapter,
                 };
             }
 
@@ -80,9 +95,9 @@ namespace FactoryMustScale.Runtime
             _unitTick = 0;
         }
 
-        private void Update()
+        private void FixedUpdate()
         {
-            _accumulatorSeconds += Time.deltaTime;
+            _accumulatorSeconds += Time.fixedDeltaTime;
 
             while (_accumulatorSeconds >= UnitTickDeltaSeconds)
             {

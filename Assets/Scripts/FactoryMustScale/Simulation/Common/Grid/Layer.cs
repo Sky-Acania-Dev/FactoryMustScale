@@ -59,6 +59,7 @@ namespace FactoryMustScale.Simulation
         public int Width => _width;
         public int Height => _height;
         public int PayloadChannelCount => _payloadChannelCount;
+        public GridCellData[] CellData => _cells;
 
         public bool IsInRange(int x, int y)
         {
