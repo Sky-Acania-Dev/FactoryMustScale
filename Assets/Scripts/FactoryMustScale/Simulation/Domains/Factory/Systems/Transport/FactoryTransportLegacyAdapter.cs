@@ -1,5 +1,6 @@
 namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Transport
 {
+    using FactoryMustScale.Simulation;
     using FactoryMustScale.Simulation.Core;
     using FactoryMustScale.Simulation.Item;
     using FactoryMustScale.Simulation.Legacy;
@@ -26,6 +27,14 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Transport
         public int ComputeRunCount { get; private set; }
 
         public int CommitRunCount { get; private set; }
+
+        public int Width => _state.FactoryLayer != null ? _state.FactoryLayer.Width : 0;
+
+        public int Height => _state.FactoryLayer != null ? _state.FactoryLayer.Height : 0;
+
+        public GridCellData[] Cells => _state.FactoryLayer != null ? _state.FactoryLayer.CellData : null;
+
+        public int[] ItemIdByCell => _state.ItemPayloadByCell;
 
         public void PreCompute(ref SimContext ctx)
         {

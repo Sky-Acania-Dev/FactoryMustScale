@@ -5,10 +5,10 @@ using UnityEngine;
 namespace FactoryMustScale.Runtime.Visualization
 {
     /// <summary>
-    /// Debug renderer for grid state + payload that is intended to evolve into the minimap renderer.
+    /// Stateless-style minimap renderer over deterministic grid data.
     /// Coordinate convention: y-up simulation indexing and y-up texture addressing (row-major index = x + y * width).
     /// </summary>
-    public sealed class DebugGridMinimapRenderer
+    public sealed class GridMinimapRenderer
     {
         private Texture2D _texture;
         private int _gridWidth;
