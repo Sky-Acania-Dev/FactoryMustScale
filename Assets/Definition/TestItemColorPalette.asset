@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f90f8b257e691ea408d490e9dc65d906, type: 3}
+  m_Name: TestItemColorPalette
+  m_EditorClassIdentifier: FactoryMustScale::FactoryMustScale.Authoring.ItemColorPaletteDefinition
+  _defaultUnknownItemColor:
+    serializedVersion: 2
+    rgba: 4294902015
+  _emptyPayloadColor:
+    serializedVersion: 2
+    rgba: 0
+  _entries:
+  - name: None
+    ItemId: 0
+    Color:
+      serializedVersion: 2
+      rgba: 0
+  - name: Ore
+    ItemId: 1
+    Color:
+      serializedVersion: 2
+      rgba: 4278575615

@@ -6,6 +6,7 @@ namespace FactoryMustScale.Authoring
     [System.Serializable]
     public struct GridStateColorPaletteEntry
     {
+        public string name;
         public int StateId;
         public Color32 Color;
     }

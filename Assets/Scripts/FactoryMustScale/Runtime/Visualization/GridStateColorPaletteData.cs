@@ -21,9 +21,10 @@ namespace FactoryMustScale.Runtime.Visualization
         {
             if (stateId >= 0 && stateId < _colorsByStateId.Length)
             {
+                //Debug.Log("Resolving grid state id " + stateId + " to color " + _colorsByStateId[stateId]);
                 return _colorsByStateId[stateId];
             }
-
+            //Debug.LogWarning("Grid state id " + stateId + " is out of palette bounds; returning default unknown state color.");
             return _defaultUnknownStateColor;
         }
     }

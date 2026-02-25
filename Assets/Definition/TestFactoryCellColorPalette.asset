@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 945288dfa3970124c95afe4a2f4c9896, type: 3}
+  m_Name: TestFactoryCellColorPalette
+  m_EditorClassIdentifier: FactoryMustScale::FactoryMustScale.Authoring.GridStateColorPaletteDefinition
+  _defaultUnknownStateColor:
+    serializedVersion: 2
+    rgba: 4294902015
+  _entries:
+  - name: None
+    StateId: 0
+    Color:
+      serializedVersion: 2
+      rgba: 0
+  - name: Conveyor
+    StateId: 1
+    Color:
+      serializedVersion: 2
+      rgba: 4281579657
+  - name: Miner
+    StateId: 11
+    Color:
+      serializedVersion: 2
+      rgba: 4278206933
+  - name: Storage
+    StateId: 31
+    Color:
+      serializedVersion: 2
+      rgba: 4292311552

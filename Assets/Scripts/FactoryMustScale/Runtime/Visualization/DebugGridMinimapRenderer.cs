@@ -26,7 +26,7 @@ namespace FactoryMustScale.Runtime.Visualization
             _textureWidth = _gridWidth * _cellPixelSize;
             int textureHeight = _gridHeight * _cellPixelSize;
 
-            _texture = new Texture2D(_textureWidth, textureHeight, TextureFormat.ARGB32, mipChain: false, linear: false)
+            _texture = new Texture2D(_textureWidth, textureHeight, TextureFormat.RGBA32, mipChain: false, linear: false)
             {
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp,

@@ -6,6 +6,7 @@ namespace FactoryMustScale.Authoring
     [System.Serializable]
     public struct ItemColorPaletteEntry
     {
+        public string name;
         public int ItemId;
         public Color32 Color;
     }

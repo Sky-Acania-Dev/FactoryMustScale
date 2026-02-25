@@ -1,4 +1,5 @@
 using FactoryMustScale.Authoring;
+using FactoryMustScale.Simulation;
 using UnityEngine;
 using UnityEngine.UI;
 

@@ -24,9 +24,11 @@ namespace FactoryMustScale.Runtime.Visualization
         {
             if (itemId >= 0 && itemId < _colorsByItemId.Length)
             {
+                //Debug.Log($"Resolving item id {itemId} to color {_colorsByItemId[itemId]}");
                 return _colorsByItemId[itemId];
             }
 
+            //Debug.LogWarning($"Unknown item id: {itemId}. Returning default unknown item color.");
             return _defaultUnknownItemColor;
         }
     }
