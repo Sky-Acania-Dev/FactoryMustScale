@@ -1,5 +1,5 @@
-using FactoryMustScale.Simulation.Core;
-using FactoryMustScale.Simulation.Domains.Factory.Systems.Transport;
+using FactoryMustScale.Simulation;
+using FactoryMustScale.Simulation.ItemTransport;
 using FactoryMustScale.Simulation.Legacy;
 using NUnit.Framework;
 
@@ -10,16 +10,15 @@ namespace FactoryMustScale.Tests.EditMode.Core
         [Test]
         public void Throughput_FiveBelts_MovesOneCellEveryFourFactoryTicks()
         {
-            FactoryCoreLoopState initialState = CreateFiveBeltLineState();
-            var adapter = new FactoryTransportLegacyAdapter(in initialState);
-            var loop = new SimLoop(new ISimSystem[] { adapter });
+            FactoryCoreLoopState state = CreateFiveBeltLineState();
 
-            // Tick 0
-            Assert.That(FindItemIndex(adapter.ItemIdByCell), Is.EqualTo(0));
+            Assert.That(FindItemIndex(state.ItemPayloadByCell), Is.EqualTo(0));
 
             for (int tick = 1; tick <= 20; tick++)
             {
-                loop.Tick(new SimClock(tick * 4));
+                BeltTransportSystem.PreCompute(ref state);
+                BeltTransportSystem.Compute(ref state);
+                BeltTransportSystem.Commit(ref state);
 
                 int expectedIndex = tick / 4;
                 if (expectedIndex > 4)
@@ -27,7 +26,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
                     expectedIndex = 4;
                 }
 
-                Assert.That(FindItemIndex(adapter.ItemIdByCell), Is.EqualTo(expectedIndex), $"tick={tick}");
+                Assert.That(FindItemIndex(state.ItemPayloadByCell), Is.EqualTo(expectedIndex), $"tick={tick}");
             }
         }
 
@@ -47,15 +46,15 @@ namespace FactoryMustScale.Tests.EditMode.Core
 
         private static ulong[] RunScenarioHashes(int ticks)
         {
-            FactoryCoreLoopState initialState = CreateFiveBeltLineState();
-            var adapter = new FactoryTransportLegacyAdapter(in initialState);
-            var loop = new SimLoop(new ISimSystem[] { adapter });
+            FactoryCoreLoopState state = CreateFiveBeltLineState();
             ulong[] hashes = new ulong[ticks];
 
             for (int tick = 0; tick < ticks; tick++)
             {
-                loop.Tick(new SimClock((tick + 1) * 4));
-                hashes[tick] = ComputeStateHash(adapter.ItemIdByCell, adapter.ProgressByCell, adapter.DirectionByCell, adapter.BuildingTypeByCell);
+                BeltTransportSystem.PreCompute(ref state);
+                BeltTransportSystem.Compute(ref state);
+                BeltTransportSystem.Commit(ref state);
+                hashes[tick] = ComputeStateHash(state.ItemPayloadByCell, state.ItemTransportProgressByCell);
             }
 
             return hashes;
@@ -63,30 +62,18 @@ namespace FactoryMustScale.Tests.EditMode.Core
 
         private static FactoryCoreLoopState CreateFiveBeltLineState()
         {
-            int[] commandType = new int[1];
-            int[] commandCellIndex = new int[1];
-            int[] commandArg = new int[1];
-            commandType[0] = FactoryTransportLegacyAdapter.CommandInjectItem;
-            commandCellIndex[0] = 0;
-            commandArg[0] = 7;
+            Layer layer = new Layer(0, 0, width: 5, height: 1, payloadChannelCount: 0);
+            for (int x = 0; x < 5; x++)
+            {
+                int variant = GridCellData.SetOrientation(0, CellOrientation.Right);
+                layer.TrySetCellState(x, 0, (int)GridStateId.Conveyor, variant, 0u, currentTick: 0, out _);
+            }
 
             return new FactoryCoreLoopState
             {
-                BuildingTypeByCell = new[]
-                {
-                    FactoryTransportLegacyAdapter.BeltBuildingType,
-                    FactoryTransportLegacyAdapter.BeltBuildingType,
-                    FactoryTransportLegacyAdapter.BeltBuildingType,
-                    FactoryTransportLegacyAdapter.BeltBuildingType,
-                    FactoryTransportLegacyAdapter.BeltBuildingType,
-                },
-                DirectionByCell = new[] { 1, 1, 1, 1, 1 },
-                ItemPayloadByCell = new int[5],
+                FactoryLayer = layer,
+                ItemPayloadByCell = new[] { 7, 0, 0, 0, 0 },
                 ItemTransportProgressByCell = new int[5],
-                CommandTypeByIndex = commandType,
-                CommandCellIndexByIndex = commandCellIndex,
-                CommandDirOrItemIdByIndex = commandArg,
-                CommandCount = 1,
             };
         }
 
@@ -103,7 +90,7 @@ namespace FactoryMustScale.Tests.EditMode.Core
             return -1;
         }
 
-        private static ulong ComputeStateHash(int[] payload, int[] progress, int[] direction, int[] buildingType)
+        private static ulong ComputeStateHash(int[] payload, int[] progress)
         {
             const ulong offset = 1469598103934665603UL;
             const ulong prime = 1099511628211UL;
@@ -111,8 +98,6 @@ namespace FactoryMustScale.Tests.EditMode.Core
             ulong hash = offset;
             hash = HashArray(payload, hash, prime);
             hash = HashArray(progress, hash, prime);
-            hash = HashArray(direction, hash, prime);
-            hash = HashArray(buildingType, hash, prime);
             return hash;
         }
 
