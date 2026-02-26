@@ -1,6 +1,7 @@
 namespace FactoryMustScale.Simulation.Legacy
 {
     using FactoryMustScale.Simulation.Item;
+    using FactoryMustScale.Simulation.ItemTransport;
 
     /// <summary>
     /// Authoritative factory tick step order.
@@ -149,7 +150,7 @@ namespace FactoryMustScale.Simulation.Legacy
             state.SimEvents.EnsureCapacity(simEventCapacity);
             state.SimEvents.BeginTick();
             state.SimEvents.PromoteQueuedEvents();
-            ItemTransportPhaseSystem.IngestEvents(ref state);
+            BeltTransportSystem.PreCompute(ref state);
             state.InputAndEventHandlingCount++;
             AppendTrace(ref state, FactoryTickStep.EventCommit, tickIndex);
         }
@@ -157,13 +158,13 @@ namespace FactoryMustScale.Simulation.Legacy
         private static void CellProcessUpdate(ref FactoryCoreLoopState state, int tickIndex)
         {
             state.CellProcessUpdateCount++;
-            ItemTransportPhaseSystem.Run(ref state);
+            BeltTransportSystem.Compute(ref state);
             AppendTrace(ref state, FactoryTickStep.CellProcess, tickIndex);
         }
 
         private static void PublishEventsForNextTick(ref FactoryCoreLoopState state, int tickIndex)
         {
-            ItemTransportPhaseSystem.PublishEvents(ref state);
+            BeltTransportSystem.Commit(ref state);
             state.PublishEventsForNextTickCount++;
             AppendTrace(ref state, FactoryTickStep.EventCache, tickIndex);
         }

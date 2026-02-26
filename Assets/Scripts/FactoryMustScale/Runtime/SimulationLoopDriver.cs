@@ -22,19 +22,21 @@ namespace FactoryMustScale.Runtime
         private float _accumulatorSeconds;
         private int _unitTick;
         private FactoryTransportLegacyAdapter _factoryTransportAdapter;
+        private Layer _factoryLayer;
 
         public int UnitTick => _unitTick;
 
-        public int MinimapGridWidth => _factoryTransportAdapter != null ? _factoryTransportAdapter.Width : 0;
+        public int MinimapGridWidth => _factoryLayer != null ? _factoryLayer.Width : 0;
 
-        public int MinimapGridHeight => _factoryTransportAdapter != null ? _factoryTransportAdapter.Height : 0;
+        public int MinimapGridHeight => _factoryLayer != null ? _factoryLayer.Height : 0;
 
-        public GridCellData[] MinimapCells => _factoryTransportAdapter != null ? _factoryTransportAdapter.Cells : null;
+        public GridCellData[] MinimapCells => _factoryLayer != null ? _factoryLayer.CellData : null;
 
         public int[] MinimapItemIdByCell => _factoryTransportAdapter != null ? _factoryTransportAdapter.ItemIdByCell : null;
 
         public void ConfigureFactoryTransportState(in FactoryCoreLoopState state)
         {
+            _factoryLayer = state.FactoryLayer;
             _factoryTransportAdapter = new FactoryTransportLegacyAdapter(in state);
             _systems = new ISimSystem[]
             {
