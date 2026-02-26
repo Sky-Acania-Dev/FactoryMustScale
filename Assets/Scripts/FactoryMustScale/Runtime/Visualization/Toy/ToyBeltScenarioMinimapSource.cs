@@ -120,7 +120,6 @@ namespace FactoryMustScale.Runtime.Visualization.Toy
             {
                 _itemIdByCell[_minerOutputIndex] = ProducedItemId;
             }
-            Debug.Log("Toy Belt Sim Tick: " + _currentTick);
         }
 
         private static int[] BuildSPath(int width)
