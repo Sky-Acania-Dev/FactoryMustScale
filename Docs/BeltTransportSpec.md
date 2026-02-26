@@ -18,52 +18,84 @@ A **factory tick** is one execution of the transport loop:
 
 Transport state changes are governed only by this loop.
 
-### 1.2 Applied Events vs Published Events
+### 1.2 External/Input Events vs Optional Debug/Replay Records
 
-- **Applied events** are transport events published in tick `N-1` and consumed in `PreCompute` of tick `N`.
-- **Published events** are transport events produced in `Commit` of tick `N` and queued for `PreCompute` of tick `N+1`.
+- **External/Input Events** are non-transport inputs for the current tick and are applied in `PreCompute` of that same tick. These events mutate topology and cell state (for example build, remove, rotate, inject, remove, capacity, routing).
+- **Optional Debug/Replay Records** are optional outputs emitted in `Commit`. They are observational only, are not applied back into simulation state, and are not required for correctness.
 
 Cadence rule:
 
-- Events emitted during `Commit(N)` MUST NOT mutate authoritative transport state in tick `N`.
-- Events emitted during `Commit(N)` MUST be applied exactly once in `PreCompute(N+1)`.
+- External/Input Events for tick `N` are applied in `PreCompute(N)`.
+- Transport moves resolved in tick `N` are applied immediately in `Commit(N)` via two-buffer commit.
+- Debug/replay records emitted during `Commit(N)` MUST NOT drive authoritative state transitions.
 
 ### 1.3 Phase Purposes
 
-- `PreCompute` prepares deterministic read-only inputs for planning by applying prior tick events and deriving flags.
+- `PreCompute` prepares deterministic planning inputs by applying only external/input events, resetting transient buffers, and deriving flags.
 - `Compute` resolves all transfer intents into a deterministic move plan without mutating authoritative transport state.
-- `Commit` publishes transfer events from the resolved move plan in deterministic order and updates allowed persistent arbitration state.
+- `Commit` applies the resolved move plan immediately in the same tick using two-buffer semantics and updates allowed persistent arbitration state.
 
 ### 1.4 Determinism Requirement
 
 Given identical initial authoritative state and identical input event stream, every tick MUST produce:
 
 - identical resolved move plan,
-- identical published events,
+- identical optional debug/replay records (if enabled),
 - identical next authoritative state.
 
 The transport loop MUST be independent of render/update frame rate.
 
 ---
 
-## 2) Phase Contracts
+## 2) Data Layout Definition
 
-### 2.1 PreCompute Contract
+All arrays are fixed-size, index-addressable, and use cell index domain `[0, CellCount)`.
+
+### 2.1 Authoritative Per-Cell State (Primary/Secondary Buffers)
+
+- `payloadItemId[i]`: item id currently occupying cell `i` slot; `EMPTY` if none.
+- `payloadCount[i]`: integer occupancy count for cell `i`.
+- `progress[i]`: integer transport progress for cell `i`.
+- `capacity[i]`: integer slot capacity for cell `i`.
+- `direction[i]`: output direction/rotation for routing from cell `i`.
+
+### 2.2 Derived Flags (PreCompute Output)
+
+- `canSend[i]`
+- `canReceive[i]`
+- `isBlocked[i]`
+
+Derived flags are valid only for tick `N` after `PreCompute(N)` completes.
+
+### 2.3 Transient Buffers (Cleared Every Tick)
+
+- `moveIntentSource[source]`: source index if source generated an intent; otherwise `INVALID`.
+- `moveIntentTarget[source]`: target index chosen by source intent; otherwise `INVALID`.
+- `resolvedSourceByTarget[target]`: winning source for target; otherwise `INVALID`.
+- `resolvedTargetBySource[source]`: resolved target for source; otherwise `INVALID`.
+
+### 2.4 Persistent Arbitration State
+
+- `mergerPointer[i]`: round-robin pointer for merger cell `i`.
+
+This state persists across ticks and is updated only in `Commit` when a merger successfully receives an item.
+
+---
+
+## 3) Phase Contracts
+
+### 3.1 PreCompute
 
 #### Reads
 
-- Authoritative per-cell state arrays from the start of tick `N`.
-- Applied-event queue containing events published at `Commit(N-1)`.
+- Authoritative per-cell state at the start of tick `N`.
+- External/input event stream for tick `N`.
 
 #### Applies
 
-For each applied `ItemMoveEvent`:
+PreCompute MUST deterministically apply external/input events only. Supported classes include topology and cell-state mutations (build, remove, rotate, inject, remove, capacity, routing).
 
-- Remove the item from `sourceIndex` authoritative payload slot.
-- Insert the item into `targetIndex` authoritative payload slot.
-- Update authoritative progress values required by this spec:
-  - source progress resets to `0` after a successful transfer apply,
-  - target progress remains unchanged unless explicitly defined elsewhere.
+PreCompute MUST NOT apply transport move events.
 
 #### Resets
 
@@ -90,45 +122,11 @@ Definitions:
 
 #### MUST NOT
 
-- MUST NOT publish new transport events.
 - MUST NOT perform arbitration among competing sources.
+- MUST NOT mutate persistent arbitration state.
 - MUST NOT read or write transient move-plan results from previous ticks.
 
-#### PreCompute Pseudocode
-
-```text
-for i in 0..CellCount-1:
-    moveIntentSource[i] = INVALID
-    moveIntentTarget[i] = INVALID
-    resolvedSourceByTarget[i] = INVALID
-    resolvedTargetBySource[i] = INVALID
-
-for event in appliedEventsInStableOrder:
-    assert event.type == ItemMoveEvent
-    assert payloadItemId[event.sourceIndex] == event.itemId
-    assert payloadCount[event.targetIndex] < capacity[event.targetIndex]
-
-    payloadItemId[event.sourceIndex] = EMPTY
-    payloadCount[event.sourceIndex] = 0
-    payloadItemId[event.targetIndex] = event.itemId
-    payloadCount[event.targetIndex] += 1
-    progress[event.sourceIndex] = 0
-
-for i in 0..CellCount-1:
-    target = outputTargetIndex(i)
-    hasPayload = (payloadCount[i] > 0)
-    thresholdReady = (progress[i] >= transferThreshold)
-    targetExists = (target != INVALID)
-    targetCanReceive = targetExists and (payloadCount[target] < capacity[target]) and isTransportReceiver[target]
-
-    canSend[i] = hasPayload and thresholdReady and targetExists and isTransportSender[i]
-    canReceive[i] = (payloadCount[i] < capacity[i]) and isTransportReceiver[i]
-    isBlocked[i] = canSend[i] and (not targetCanReceive)
-```
-
----
-
-### 2.2 Compute Contract
+### 3.2 Compute
 
 #### Reads
 
@@ -147,147 +145,50 @@ for i in 0..CellCount-1:
 
 #### MUST NOT
 
-- MUST NOT mutate authoritative payload/progress/capacity/direction arrays.
-- MUST NOT publish events.
-- MUST NOT mutate applied-event queue.
+- MUST NOT mutate authoritative payload/count/progress/capacity/direction arrays.
+- MUST NOT mutate external/input event queues.
+- MUST NOT apply resolved moves.
 
-Compute produces only a deterministic transfer plan for this tick.
+Compute is plan-only: it generates intents and resolves arbitration into the deterministic move plan for this tick.
 
-#### Compute Pseudocode
+### 3.3 Commit (Two-Buffer Immediate Apply)
 
-```text
-# Step 1: build one intent per source in deterministic source order
-for source in 0..CellCount-1:
-    if not canSend[source]:
-        continue
+- Commit MUST read primary buffers and write ONLY to secondary buffers.
+- Commit MUST apply resolved moves in deterministic TARGET INDEX order.
+- Commit MUST swap buffers exactly once at the end of the phase.
 
-    target = outputTargetIndex(source)
-    if target == INVALID:
-        continue
+#### Step 1: Initialize Secondary Buffers
 
-    if not canReceive[target]:
-        continue
+- Copy primary payload/progress into secondary.
+- Copy any other authoritative per-cell fields required to preserve unchanged state this tick.
 
-    moveIntentSource[source] = source
-    moveIntentTarget[source] = target
+#### Step 2: Apply Resolved Moves (Target Order)
 
-# Step 2: resolve one winner per target in deterministic target order
-for target in 0..CellCount-1:
-    winningSource = INVALID
+- For each target in `0..CellCount-1`:
+  - `source = resolvedSourceByTarget[target]`
+  - if `source` invalid, continue
+  - `itemId` is read from primary `payloadItemId[source]`
+  - write removals/insertions ONLY to secondary:
+    - source: clear payload + reset progress
+    - target: increment `payloadCount` and set `payloadItemId` if needed
 
-    # Collect candidates in deterministic source order
-    # Candidate set: all source where moveIntentTarget[source] == target
-    if isMerger[target]:
-        winningSource = resolveMergerWinner(target, candidates, mergerPointer[target])
-    else:
-        winningSource = resolveDefaultWinner(candidates)
+Capacity MUST NOT be exceeded. `Compute` MUST prevent resolving into full targets.
 
-    if winningSource != INVALID:
-        resolvedSourceByTarget[target] = winningSource
-        resolvedTargetBySource[winningSource] = target
-```
+#### Step 3: Update Persistent Arbitration State
 
----
+- Merger round-robin pointer advances ONLY if that merger successfully received an item this tick.
+- Pointer advances exactly once per successful transfer.
 
-### 2.3 Commit Contract
+#### Step 4: Swap Buffers
 
-#### Reads
+- Atomic swap of primary and secondary buffers exactly once.
 
-- Resolved move plan buffers from `Compute`.
+#### Commit MUST NOT
 
-#### Emits
-
-For every resolved move `(source, target)`, Commit MUST publish exactly one `ItemMoveEvent` containing:
-
-- `sourceIndex = source`
-- `targetIndex = target`
-- `itemId = payloadItemId[source]` (authoritative item id at commit time)
-
-#### Emission Order
-
-Commit MUST emit events in stable deterministic order:
-
-1. iterate `target` from `0..CellCount-1`,
-2. if `resolvedSourceByTarget[target] != INVALID`, emit that event.
-
-No other ordering is allowed.
-
-#### Persistent Arbitration Updates
-
-Commit MAY update persistent arbitration state only for nodes that successfully emitted a move event.
-
-For merger nodes, the round-robin pointer MUST advance exactly once when that merger emitted a move event, and MUST NOT advance when no event was emitted.
-
-#### MUST NOT
-
-- MUST NOT directly move payload between cells.
-- MUST NOT apply newly emitted events in the same tick.
-
-#### Commit Pseudocode
-
-```text
-for target in 0..CellCount-1:
-    source = resolvedSourceByTarget[target]
-    if source == INVALID:
-        continue
-
-    event.sourceIndex = source
-    event.targetIndex = target
-    event.itemId = payloadItemId[source]
-    publish(event)
-
-    if isMerger[target]:
-        mergerPointer[target] = nextMergerPointer(target, source)
-```
-
----
-
-## 3) Data Layout Definition
-
-All arrays are fixed-size, index-addressable, and use cell index domain `[0, CellCount)`.
-
-### 3.1 Authoritative Per-Cell State
-
-- `payloadItemId[i]`: item id currently occupying cell `i` slot; `EMPTY` if none.
-- `progress[i]`: integer transport progress for cell `i`.
-- `capacity[i]`: integer slot capacity for cell `i`.
-- `direction[i]`: output direction/rotation for routing from cell `i`.
-
-### 3.2 Derived Flags (PreCompute Output)
-
-- `canSend[i]`
-- `canReceive[i]`
-- `isBlocked[i]`
-
-Derived flags are valid only for tick `N` after `PreCompute(N)` completes.
-
-### 3.3 Transient Buffers (Cleared Every Tick)
-
-- `moveIntentSource[source]`: source index if source generated an intent; otherwise `INVALID`.
-- `moveIntentTarget[source]`: target index chosen by source intent; otherwise `INVALID`.
-- `resolvedSourceByTarget[target]`: winning source for target; otherwise `INVALID`.
-- `resolvedTargetBySource[source]`: resolved target for source; otherwise `INVALID`.
-
-### 3.4 Persistent Arbitration State
-
-- `mergerPointer[i]`: round-robin pointer for merger cell `i`.
-
-This state persists across ticks and is updated only in `Commit` when a merger transfer is emitted.
-
-### 3.5 Phase Validity Matrix
-
-- `PreCompute`:
-  - reads/writes authoritative state,
-  - writes derived flags,
-  - clears transient buffers,
-  - reads applied events.
-- `Compute`:
-  - reads authoritative state + derived flags + persistent arbitration state,
-  - writes transient buffers only.
-- `Commit`:
-  - reads resolved transient buffers + authoritative `payloadItemId`,
-  - publishes events,
-  - updates persistent arbitration state.
+- Mutate primary buffers during move application.
+- Apply moves in source order.
+- Swap more than once.
+- Partially apply moves.
 
 ---
 
@@ -298,8 +199,8 @@ This state persists across ticks and is updated only in `Commit` when a merger t
 3. Conflict resolution is per target in ascending target index.
 4. Default tie-break is lowest source index among candidates.
 5. Merger tie-break uses merger round-robin pointer first; source index is the fallback tie-break when pointer does not distinguish.
-6. Merger round-robin pointer advancement occurs only on successful emitted transfer for that merger.
-7. Event emission order is ascending target index of resolved targets.
+6. Merger round-robin pointer advancement occurs only on successful transfer for that merger.
+7. Optional debug/replay record emission order is ascending target index of resolved targets.
 
 All ordering rules are mandatory.
 
@@ -324,7 +225,7 @@ If `T` is merger:
 1. Determine candidate list in deterministic incoming-port order anchored by `mergerPointer[T]`.
 2. Select first candidate in that rotated order.
 3. If no candidate exists, no winner.
-4. Advance `mergerPointer[T]` in `Commit` only when a move event for `T` is emitted.
+4. Advance `mergerPointer[T]` in `Commit` only when `T` successfully received an item.
 
 ### 5.4 Blocked Target
 
@@ -347,28 +248,28 @@ The selected target MUST be stable for identical input state.
 1. A transfer requires `progress[source] >= transferThreshold` at `PreCompute` time.
 2. A source may send at most one item per tick.
 3. A target may receive at most one item per tick.
-4. A cell MAY both send and receive in the same tick because send effects are applied next tick and receive effects are also applied next tick.
-5. Capacity rule: `payloadCount[i]` MUST remain within `[0, capacity[i]]` after every `PreCompute` apply.
+4. A cell MAY both send and receive in the same tick because two-buffer commit semantics allow send+receive within one tick without read/write hazards.
+5. Capacity rule: `payloadCount[i]` MUST remain within `[0, capacity[i]]` after every `Commit` swap.
 6. Current single-slot operation is represented by `capacity[i] = 1`; the contract remains valid for larger fixed capacities.
 
 ---
 
 ## 7) Invariants (Testable)
 
-1. **No duplication**: sum of live items in authoritative state plus queued published move events is conserved across ticks unless explicit non-transport delete events are applied.
-2. **No loss**: every emitted `ItemMoveEvent` applied at `PreCompute(N+1)` removes item from exactly one source and inserts into exactly one target.
+1. **No duplication**: total live items in authoritative state before `Commit(N)` equals total live items after `Commit(N)` unless explicit non-transport create/delete external events were applied in `PreCompute(N)`.
+2. **No loss**: each resolved move in tick `N` removes one item from exactly one source cell and inserts one item into exactly one target cell during `Commit(N)`.
 3. **Single winner per target per tick**: `resolvedSourceByTarget[target]` is either `INVALID` or exactly one source.
 4. **Single target per source per tick**: `resolvedTargetBySource[source]` is either `INVALID` or exactly one target.
-5. **Commit/apply cadence**: events emitted at `Commit(N)` are not applied before `PreCompute(N+1)` and are applied exactly once.
-6. **Deterministic ordering**: event list published in `Commit` is identical for identical initial state and applied events.
+5. **Immediate apply semantics**: resolved moves are applied in `Commit(N)` and visible in authoritative state immediately after the single buffer swap of `Commit(N)`.
+6. **Deterministic ordering**: resolved target-order application (and optional records, if enabled) is identical for identical initial state and input events.
 
 ---
 
-## 8) Event Contract
+## 8) Optional Debug/Replay Records
 
-### 8.1 Event Type
+### 8.1 Record Type
 
-`ItemMoveEvent`
+Optional `ItemMoveRecord`
 
 Fields:
 
@@ -378,21 +279,17 @@ Fields:
 
 ### 8.2 Emit Timing
 
-`ItemMoveEvent` is emitted only in `Commit` for each resolved `(source, target)` pair.
+If enabled, records are emitted only in `Commit` for each resolved `(source, target)` pair.
 
-### 8.3 Apply Timing
+### 8.3 Emit Order
 
-`ItemMoveEvent` emitted in tick `N` MUST be applied in `PreCompute` of tick `N+1`.
+Records are emitted in deterministic ascending target index order.
 
-### 8.4 Validation on Apply
+### 8.4 Correctness Role
 
-On apply, the implementation MUST validate:
+Records reflect resolved moves only.
 
-- source currently contains `itemId`,
-- target has available capacity,
-- source and target indices are in range.
-
-Invalid events MUST fail deterministically according to global simulation error policy; silent drops are forbidden.
+Records are not applied, do not feed back into transport state, and are not required for simulation correctness.
 
 ---
 
@@ -407,4 +304,4 @@ This specification does not define:
 - camera behavior,
 - audio.
 
-Only deterministic transport state transitions and transport event publication are in scope.
+Only deterministic transport state transitions are in scope.
