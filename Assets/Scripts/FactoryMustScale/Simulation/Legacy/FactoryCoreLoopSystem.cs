@@ -59,11 +59,29 @@ namespace FactoryMustScale.Simulation.Legacy
         public int SimEventCapacity;
         public int[] StorageItemCountByCell;
         public int[] ItemPayloadByCell;
+        public int[] ItemNextPayloadByCell;
         public int[] ItemTransportProgressByCell;
+        public int[] ItemNextTransportProgressByCell;
+        public int[] BuildingTypeByCell;
+        public int[] DirectionByCell;
         public int[] ItemIntentTargetBySource;
+        public int[] ItemResolvedSourceByTarget;
+        public int[] ItemResolvedTargetBySource;
         public int[] ItemWinnerSourceByTarget;
         public int[] ItemWinnerCountByTarget;
         public int[] ItemMergerRoundRobinCursorByCell;
+
+        // Derived/read-only per-tick flags built during PreCompute.
+        public bool[] IsBeltByCell;
+        public bool[] HasItemByCell;
+        public bool[] CanReceiveByCell;
+        public int[] OutputTargetIndexByCell;
+
+        // Minimal placeholder command queue for deterministic PreCompute ingestion.
+        public int[] CommandTypeByIndex;
+        public int[] CommandCellIndexByIndex;
+        public int[] CommandDirOrItemIdByIndex;
+        public int CommandCount;
 
         // Item transport move events queued for current and next tick.
         public int[] ItemMoveEventSourceByIndex;
