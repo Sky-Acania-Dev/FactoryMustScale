@@ -31,6 +31,11 @@ namespace FactoryMustScale.Simulation.Domains.Factory.Systems.Transport
             _state = initialState;
         }
 
+        public FactoryTransportLegacyAdapter(in CoreLoopState initialState)
+        {
+            _state = initialState;
+        }
+
         public int PreComputeRunCount { get; private set; }
 
         public int ComputeRunCount { get; private set; }

@@ -2,7 +2,6 @@ using FactoryMustScale.Simulation;
 using FactoryMustScale.Simulation.Core;
 using FactoryMustScale.Simulation.Domains.Factory.Systems.Transport;
 using FactoryMustScale.Simulation.Item;
-using FactoryMustScale.Simulation.Legacy;
 using UnityEngine;
 
 namespace FactoryMustScale.Runtime
@@ -34,7 +33,7 @@ namespace FactoryMustScale.Runtime
 
         public int[] MinimapItemIdByCell => _factoryTransportAdapter != null ? _factoryTransportAdapter.ItemIdByCell : null;
 
-        public void ConfigureFactoryTransportState(in FactoryCoreLoopState state)
+        public void ConfigureFactoryTransportState(in CoreLoopState state)
         {
             _factoryLayer = state.FactoryLayer;
             _factoryTransportAdapter = new FactoryTransportLegacyAdapter(in state);
@@ -80,7 +79,7 @@ namespace FactoryMustScale.Runtime
         {
             if (_systems.Length == 0 && _useFactoryTransportLegacyAdapter)
             {
-                FactoryCoreLoopState initialFactoryState = new FactoryCoreLoopState
+                CoreLoopState initialFactoryState = new CoreLoopState
                 {
                     ItemTransportAlgorithm = ItemTransportAlgorithm.SimplePush,
                 };
