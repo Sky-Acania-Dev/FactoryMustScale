@@ -60,7 +60,6 @@ namespace FactoryMustScale.Runtime
             _unitTick++;
             SimClock clock = new SimClock(_unitTick);
             _simLoop.Tick(in clock);
-            Debug.Log("Tick: " + _unitTick);
         }
 
         private void Awake()
