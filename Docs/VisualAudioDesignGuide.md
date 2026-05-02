@@ -21,14 +21,6 @@ Combat Logic
 → Battle Presentation Manager
 → VFX / SFX / Animation / Floating Text / UI Feedback
 
-## Constraints
-
-- Documentation only.
-- Do not change gameplay code.
-- Do not create scripts yet.
-- Do not create prefabs/assets.
-- Keep the document practical and implementation-oriented.
-
 ## Sections
 
 ### 1. Presentation Goals
