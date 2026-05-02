@@ -2,7 +2,7 @@
 
 Create a new Markdown document:
 
-`Docs/VisualAudioPresentationPlan.md`
+`Docs/VisualAudioDesignGuide.md`
 
 Goal:
 Document the planned visual/audio presentation architecture for the combat system. This is documentation only. Do not implement code.
