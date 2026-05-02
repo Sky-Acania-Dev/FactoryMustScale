@@ -1,11 +1,4 @@
-# Write Visual/Audio Presentation Architecture Plan
-
-Create a new Markdown document:
-
-`Docs/VisualAudioDesignGuide.md`
-
-Goal:
-Document the planned visual/audio presentation architecture for the combat system. This is documentation only. Do not implement code.
+# Visual/Audio Presentation Architecture Plan
 
 ## Context
 
@@ -36,7 +29,7 @@ Combat Logic
 - Do not create prefabs/assets.
 - Keep the document practical and implementation-oriented.
 
-## Required Sections
+## Sections
 
 ### 1. Presentation Goals
 
